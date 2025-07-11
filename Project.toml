@@ -18,7 +18,6 @@ CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-[compat]
 julia = "1.9"
 LinearAlgebra = "1"
 Distributions = "0.25"
@@ -33,6 +32,7 @@ XLSX = "0.10"
 CairoMakie = "0.11"
 AlgebraOfGraphics = "0.6"
 Test = "1"
+Unitful = "1.19"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
