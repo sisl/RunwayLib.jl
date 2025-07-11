@@ -1,5 +1,5 @@
 using Test
-using RunwayPoseEstimation
+using RunwayLib
 using DataFrames
 using CSV
 using Unitful
@@ -27,30 +27,30 @@ using Unitful
         @test 0u"°" <= runway_spec.true_bearing_deg < 360u"°"
 
         # Test unit conversions
-        @test uconvert(u"ft", runway_spec.length_m) ≈ 10000.0u"ft" rtol = 1e-3
-        @test uconvert(u"ft", runway_spec.width_m) ≈ 149.9u"ft" rtol = 1e-2
-        @test uconvert(u"rad", runway_spec.true_bearing_deg) ≈ 1.815u"rad" rtol = 1e-2
+        @test uconvert(u"ft", runway_spec.length_m) ≈ 10000.0u"ft" rtol = 1.0e-3
+        @test uconvert(u"ft", runway_spec.width_m) ≈ 149.9u"ft" rtol = 1.0e-2
+        @test uconvert(u"rad", runway_spec.true_bearing_deg) ≈ 1.815u"rad" rtol = 1.0e-2
     end
 
     @testset "Flight Data Processing" begin
         # Create mock flight data with units
         mock_data = DataFrame(
-            timestamp=[1.0, 2.0, 3.0],
-            airport_runway=["KORD_10L", "KORD_10L", "KORD_10L"],
-            gt_along_track_distance_m=[-1000.0u"m", -800.0u"m", -600.0u"m"],
-            gt_cross_track_distance_m=[0.0u"m", 5.0u"m", -2.0u"m"],
-            gt_height_m=[100.0u"m", 80.0u"m", 60.0u"m"],
-            gt_yaw_deg=[0.0u"°", 1.0u"°", -0.5u"°"],
-            gt_pitch_deg=[-2.0u"°", -1.5u"°", -1.0u"°"],
-            gt_roll_deg=[0.0u"°", 0.2u"°", -0.1u"°"],
-            pred_kp_bottom_left_x_px=[1000.0 * 1pixel, 1010.0 * 1pixel, 1020.0 * 1pixel],
-            pred_kp_bottom_left_y_px=[1500.0 * 1pixel, 1510.0 * 1pixel, 1520.0 * 1pixel],
-            pred_kp_bottom_right_x_px=[3000.0 * 1pixel, 3010.0 * 1pixel, 3020.0 * 1pixel],
-            pred_kp_bottom_right_y_px=[1500.0 * 1pixel, 1510.0 * 1pixel, 1520.0 * 1pixel],
-            pred_kp_top_left_x_px=[1200.0 * 1pixel, 1210.0 * 1pixel, 1220.0 * 1pixel],
-            pred_kp_top_left_y_px=[800.0 * 1pixel, 810.0 * 1pixel, 820.0 * 1pixel],
-            pred_kp_top_right_x_px=[2800.0 * 1pixel, 2810.0 * 1pixel, 2820.0 * 1pixel],
-            pred_kp_top_right_y_px=[800.0 * 1pixel, 810.0 * 1pixel, 820.0 * 1pixel]
+            timestamp = [1.0, 2.0, 3.0],
+            airport_runway = ["KORD_10L", "KORD_10L", "KORD_10L"],
+            gt_along_track_distance_m = [-1000.0u"m", -800.0u"m", -600.0u"m"],
+            gt_cross_track_distance_m = [0.0u"m", 5.0u"m", -2.0u"m"],
+            gt_height_m = [100.0u"m", 80.0u"m", 60.0u"m"],
+            gt_yaw_deg = [0.0u"°", 1.0u"°", -0.5u"°"],
+            gt_pitch_deg = [-2.0u"°", -1.5u"°", -1.0u"°"],
+            gt_roll_deg = [0.0u"°", 0.2u"°", -0.1u"°"],
+            pred_kp_bottom_left_x_px = [1000.0 * 1pixel, 1010.0 * 1pixel, 1020.0 * 1pixel],
+            pred_kp_bottom_left_y_px = [1500.0 * 1pixel, 1510.0 * 1pixel, 1520.0 * 1pixel],
+            pred_kp_bottom_right_x_px = [3000.0 * 1pixel, 3010.0 * 1pixel, 3020.0 * 1pixel],
+            pred_kp_bottom_right_y_px = [1500.0 * 1pixel, 1510.0 * 1pixel, 1520.0 * 1pixel],
+            pred_kp_top_left_x_px = [1200.0 * 1pixel, 1210.0 * 1pixel, 1220.0 * 1pixel],
+            pred_kp_top_left_y_px = [800.0 * 1pixel, 810.0 * 1pixel, 820.0 * 1pixel],
+            pred_kp_top_right_x_px = [2800.0 * 1pixel, 2810.0 * 1pixel, 2820.0 * 1pixel],
+            pred_kp_top_right_y_px = [800.0 * 1pixel, 810.0 * 1pixel, 820.0 * 1pixel]
         )
 
         @test nrow(mock_data) == 3
@@ -67,7 +67,7 @@ using Unitful
             ProjectionPoint(mock_data.pred_kp_bottom_left_x_px[1], mock_data.pred_kp_bottom_left_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_bottom_right_x_px[1], mock_data.pred_kp_bottom_right_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_top_left_x_px[1], mock_data.pred_kp_top_left_y_px[1]),
-            ProjectionPoint(mock_data.pred_kp_top_right_x_px[1], mock_data.pred_kp_top_right_y_px[1])
+            ProjectionPoint(mock_data.pred_kp_top_right_x_px[1], mock_data.pred_kp_top_right_y_px[1]),
         ]
 
         @test length(corners_row1) == 4
@@ -83,9 +83,9 @@ using Unitful
     @testset "Data Validation" begin
         # Test missing data detection with units
         invalid_data = DataFrame(
-            airport_runway=["KORD_10L", "KORD_10L"],
-            gt_along_track_distance_m=[-1000.0u"m", missing],
-            pred_kp_bottom_left_x_px=[1000.0 * 1pixel, 1010.0 * 1pixel]
+            airport_runway = ["KORD_10L", "KORD_10L"],
+            gt_along_track_distance_m = [-1000.0u"m", missing],
+            pred_kp_bottom_left_x_px = [1000.0 * 1pixel, 1010.0 * 1pixel]
         )
 
         missing_mask = ismissing.(invalid_data.gt_along_track_distance_m)
@@ -135,7 +135,7 @@ using Unitful
             ProjectionPoint(100.0 * 1pixel, 200.0 * 1pixel),   # bottom_left
             ProjectionPoint(300.0 * 1pixel, 200.0 * 1pixel),   # bottom_right
             ProjectionPoint(120.0 * 1pixel, 100.0 * 1pixel),   # top_left
-            ProjectionPoint(280.0 * 1pixel, 100.0 * 1pixel)    # top_right
+            ProjectionPoint(280.0 * 1pixel, 100.0 * 1pixel),    # top_right
         ]
 
         # Basic geometric consistency checks
