@@ -83,24 +83,9 @@ Build covariance matrix from ProbabilisticParameterEstimators noise model.
 # Returns
 - Covariance matrix for the noise model
 """
-function build_covariance_matrix(noise_model::UncorrGaussianNoiseModel)
-    # For uncorrelated Gaussian noise, build diagonal covariance matrix
-    variances = Float64[]
-    for dist in noise_model.distributions
-        if dist isa Normal
-            push!(variances, dist.σ^2)
-        elseif dist isa MvNormal
-            append!(variances, diag(cov(dist)))
-        else
-            error("Unsupported distribution type: $(typeof(dist))")
-        end
-    end
-    return Diagonal(variances)
-end
-
-function build_covariance_matrix(noise_model::CorrGaussianNoiseModel)
-    # For correlated Gaussian noise, use the full covariance matrix
-    return noise_model.covariance
+function build_covariance_matrix(noise_model)
+    # Use the covmatrix function from ProbabilisticParameterEstimators
+    return covmatrix(noise_model)
 end
 
 """

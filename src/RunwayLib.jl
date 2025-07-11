@@ -23,10 +23,9 @@ export world_pt_to_cam_pt, cam_pt_to_world_pt, project
 # Export data structures
 export RunwaySpec, PoseEstimate
 
-# Export noise models
-export UncorrGaussianNoiseModel, CorrGaussianNoiseModel
-export create_pixel_noise_model, create_corner_noise_model, create_full_correlated_noise_model
-export create_block_diagonal_covariance, extract_noise_model_from_uncertainties
+# Re-export noise models from ProbabilisticParameterEstimators
+using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
+export UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
 
 # Export camera model functions
 export get_focal_length_pixels, get_field_of_view, pixel_to_ray_direction
@@ -49,7 +48,6 @@ include("coordinate_systems/transformations.jl")
 include("camera_model/projection.jl")
 include("data_management/runway_database.jl")
 include("pose_estimation/types.jl")
-include("uncertainty_quantification/noise_models.jl")
 include("pose_estimation/optimization.jl")
 
 # Export pose estimation functions
