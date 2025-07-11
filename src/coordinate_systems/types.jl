@@ -8,6 +8,7 @@ This module defines the three main coordinate systems used:
 """
 
 using StaticArrays
+import StaticArrays: similar_type
 using Unitful
 
 """
@@ -133,3 +134,9 @@ CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
 ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
 ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x, y)  # Default to offset coordinates
 ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
+
+
+similar_type(::Type{<:ProjectionPoint{T, :centered}}, ::Type{T′}, s::Size{S}) where {T, T′, S} = ProjectionPoint{T′, :centered}
+similar_type(::Type{<:ProjectionPoint{T, :offset}}, ::Type{T′}, s::Size{S}) where {T, T′, S} = ProjectionPoint{T′, :offset}
+similar_type(::Type{<:WorldPoint}, ::Type{T}, s::Size{S}) where {T, S} = WorldPoint{T}
+similar_type(::Type{<:CameraPoint}, ::Type{T}, s::Size{S}) where {T, S} = CameraPoint{T}

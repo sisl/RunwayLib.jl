@@ -7,6 +7,7 @@ noise models.
 """
 
 using SimpleNonlinearSolve
+import SciMLBase: successful_retcode
 using LinearAlgebra
 using Rotations
 
@@ -22,24 +23,24 @@ Parameters for pose optimization that get passed through the parameter interface
 - `chol_upper`: Upper triangular matrix from Cholesky decomposition of noise covariance
 - `known_orientation`: Optional known orientation for 3-DOF estimation
 """
-struct PoseOptimizationParams{T, S}
-    runway_corners::AbstractVector{<:WorldPoint}
-    observed_corners::AbstractVector{<:ProjectionPoint{T, S}}
+struct PoseOptimizationParams{T, T′, S}
+    runway_corners::AbstractVector{<:WorldPoint{T}}
+    observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
     known_orientation::Union{Nothing, RotZYX}
 end
 
 function PoseOptimizationParams(
-        runway_corners::AbstractVector{<:WorldPoint},
-        observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
+        runway_corners::AbstractVector{<:WorldPoint{T}},
+        observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
         config::CameraConfig{S},
         noise_model;
         known_orientation = nothing
-    ) where {T, S}
+    ) where {T, T′, S}
     Σ = covmatrix(noise_model)
     L, U = cholesky(Σ)
-    return PoseOptimizationParams{T, S}(runway_corners, observed_corners, config, U, known_orientation)
+    return PoseOptimizationParams{T, T′, S}(runway_corners, observed_corners, config, U, known_orientation)
 end
 
 """
@@ -86,7 +87,7 @@ Optimization function for 3-DOF position estimation with known orientation.
 """
 function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
     # Unpack position parameters: [x, y, z]
-    cam_pos = WorldPoint(pos_params[1], pos_params[2], pos_params[3])
+    cam_pos = WorldPoint(pos_params[1] * u"m", pos_params[2] * u"m", pos_params[3] * u"m")
 
     # Use known orientation
     cam_rot = p.known_orientation
@@ -101,7 +102,7 @@ function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
     errors = SVector{2 * length(p.runway_corners)}(Iterators.flatten(error_vectors)...)
 
     # Apply noise weighting via Cholesky decomposition
-    return p.chol_upper' \ errors
+    return ustrip.((p.chol_upper' * pixel) \ errors)
 end
 
 
@@ -232,11 +233,14 @@ function estimate_pose_3dof(
     # Default initial guess: reasonable aircraft approach position
     if initial_guess === nothing
         initial_guess = [-1000.0, 0.0, 100.0]  # [x,y,z]
+    else
+        initial_guess = ustrip.(u"m", initial_guess)
     end
 
     # Create optimization parameters with known orientation
     opt_params = PoseOptimizationParams(
-        runway_corners, observed_corners, config, noise_model;
+        runway_corners, observed_corners,
+        config, noise_model;
         known_orientation = known_orientation
     )
 
