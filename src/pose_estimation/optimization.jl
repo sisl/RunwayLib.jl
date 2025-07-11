@@ -47,7 +47,7 @@ function build_pose_optimization_function(
 ) where {T, S}
     
     # Build covariance matrix from noise model
-    Σ = build_covariance_matrix(noise_model)
+    Σ = covmatrix(noise_model)
     L, U = cholesky(Σ)
     
     function optimization_function(pose_params, p)
@@ -72,21 +72,6 @@ function build_pose_optimization_function(
     return optimization_function
 end
 
-"""
-    build_covariance_matrix(noise_model) -> Matrix
-
-Build covariance matrix from ProbabilisticParameterEstimators noise model.
-
-# Arguments
-- `noise_model`: Noise model (UncorrGaussianNoiseModel or CorrGaussianNoiseModel)
-
-# Returns
-- Covariance matrix for the noise model
-"""
-function build_covariance_matrix(noise_model)
-    # Use the covmatrix function from ProbabilisticParameterEstimators
-    return covmatrix(noise_model)
-end
 
 """
     estimate_pose_6dof(
@@ -212,7 +197,7 @@ function estimate_pose_3dof(
     end
     
     # Build covariance matrix from noise model
-    Σ = build_covariance_matrix(noise_model)
+    Σ = covmatrix(noise_model)
     L, U = cholesky(Σ)
     
     function optimization_function(pos_params, p)

@@ -52,7 +52,7 @@ include("pose_estimation/optimization.jl")
 
 # Export pose estimation functions
 export estimate_pose_6dof, estimate_pose_3dof
-export build_pose_optimization_function, build_covariance_matrix
+export build_pose_optimization_function
 
 function compute_raim_statistic(pose_estimate, runway_spec, corners, noise_model)
     error("compute_raim_statistic not yet implemented")
