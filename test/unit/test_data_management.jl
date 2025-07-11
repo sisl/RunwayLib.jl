@@ -62,8 +62,8 @@ using Unitful
         @test all(isfinite.(ustrip.(mock_data.gt_along_track_distance_m)))
         @test all(isfinite.(ustrip.(mock_data.pred_kp_bottom_left_x_px)))
         
-        # Test corner extraction with units
-        corners_row1 = [
+        # Test corner extraction with units using StaticArrays
+        corners_row1 = SA[
             ProjectionPoint(mock_data.pred_kp_bottom_left_x_px[1], mock_data.pred_kp_bottom_left_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_bottom_right_x_px[1], mock_data.pred_kp_bottom_right_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_top_left_x_px[1], mock_data.pred_kp_top_left_y_px[1]),
@@ -91,8 +91,8 @@ using Unitful
         missing_mask = ismissing.(invalid_data.gt_along_track_distance_m)
         @test sum(missing_mask) == 1
         
-        # Test outlier detection with units
-        outlier_data = [1.0u"pixel", 2.0u"pixel", 3.0u"pixel", 1000.0u"pixel", 4.0u"pixel", 5.0u"pixel"]
+        # Test outlier detection with units using StaticArrays
+        outlier_data = SA[1.0u"pixel", 2.0u"pixel", 3.0u"pixel", 1000.0u"pixel", 4.0u"pixel", 5.0u"pixel"]
         @test maximum(outlier_data) > 100 * median(outlier_data)
         
         # Test coordinate system consistency
@@ -100,9 +100,9 @@ using Unitful
         @test 1500.0u"pixel" > 800.0u"pixel"  # bottom_left_y > top_left_y
         @test 1500.0u"pixel" > 800.0u"pixel"  # bottom_right_y > top_right_y
         
-        # Test runway dimension validation
-        valid_lengths = [1000.0u"m", 2000.0u"m", 3000.0u"m", 4000.0u"m"]
-        valid_widths = [30.0u"m", 45.0u"m", 60.0u"m"]
+        # Test runway dimension validation using StaticArrays
+        valid_lengths = SA[1000.0u"m", 2000.0u"m", 3000.0u"m", 4000.0u"m"]
+        valid_widths = SA[30.0u"m", 45.0u"m", 60.0u"m"]
         
         for length in valid_lengths
             @test 500u"m" <= length <= 6000u"m"  # Reasonable runway length range
@@ -129,9 +129,9 @@ using Unitful
         @test centered_x ≈ 0.0u"pixel" atol=1.0u"pixel"
         @test centered_y ≈ 0.0u"pixel" atol=1.0u"pixel"
         
-        # Test corner ordering consistency with units
+        # Test corner ordering consistency with units using StaticArrays
         # Corners should form a reasonable quadrilateral
-        corners = [
+        corners = SA[
             ProjectionPoint(100.0u"pixel", 200.0u"pixel"),   # bottom_left
             ProjectionPoint(300.0u"pixel", 200.0u"pixel"),   # bottom_right  
             ProjectionPoint(120.0u"pixel", 100.0u"pixel"),   # top_left
@@ -144,8 +144,8 @@ using Unitful
         @test corners[1].y > corners[3].y  # bottom > top (left)
         @test corners[2].y > corners[4].y  # bottom > top (right)
         
-        # Test pixel uncertainty ranges
-        typical_uncertainties = [1.0u"pixel", 2.5u"pixel", 5.0u"pixel", 10.0u"pixel"]
+        # Test pixel uncertainty ranges using StaticArrays
+        typical_uncertainties = SA[1.0u"pixel", 2.5u"pixel", 5.0u"pixel", 10.0u"pixel"]
         for uncertainty in typical_uncertainties
             @test 0.1u"pixel" <= uncertainty <= 20.0u"pixel"  # Reasonable range
         end

@@ -33,8 +33,8 @@ using Unitful
         # Create simple runway with units
         runway_spec = RunwaySpec("TEST_01", 1000.0u"m", 50.0u"m", 0.0u"m", 0.0u"°")
         
-        # Define runway corners in world coordinates with units
-        runway_corners = [
+        # Define runway corners in world coordinates with units using StaticArrays
+        runway_corners = SA[
             WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),      # near left
             WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),     # near right
             WorldPoint(1000.0u"m", 25.0u"m", 0.0u"m"),   # far left  
@@ -51,15 +51,15 @@ using Unitful
         true_cam_pos = WorldPoint(-500.0u"m", 0.0u"m", 100.0u"m")  # 500m before runway, 100m high
         true_cam_rot = RotZYX(0.0, 0.1, 0.0)  # Slight pitch down (≈5.7°)
         
-        # Project runway corners to image
-        projected_corners = [project(true_cam_pos, true_cam_rot, corner) for corner in runway_corners]
+        # Project runway corners to image using StaticArrays
+        projected_corners = SA[project(true_cam_pos, true_cam_rot, corner) for corner in runway_corners]
         
         # Test that projection produces finite values
         @test all(isfinite(ustrip(corner.x)) && isfinite(ustrip(corner.y)) for corner in projected_corners)
         
-        # Test basic pose estimation setup with units
-        initial_guess_pos = [-400.0u"m", 0.0u"m", 90.0u"m"]  # Close to true position
-        initial_guess_rot = [0.0, 0.0, 0.0]  # Close to true orientation (radians)
+        # Test basic pose estimation setup with units using StaticArrays
+        initial_guess_pos = SA[-400.0u"m", 0.0u"m", 90.0u"m"]  # Close to true position
+        initial_guess_rot = SA[0.0, 0.0, 0.0]  # Close to true orientation (radians)
         
         # Test initial guess is reasonable
         @test abs(initial_guess_pos[1] - true_cam_pos.x) < 200u"m"  # Within 200m
@@ -71,8 +71,8 @@ using Unitful
     end
     
     @testset "3-DOF Position Estimation" begin
-        # Test position-only estimation with known orientation and units
-        runway_corners = [
+        # Test position-only estimation with known orientation and units using StaticArrays
+        runway_corners = SA[
             WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),
             WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),
             WorldPoint(1000.0u"m", 25.0u"m", 0.0u"m"),
@@ -87,10 +87,10 @@ using Unitful
         @test abs(known_cam_rot.theta2) < π/6  # Pitch within ±30°
         @test abs(known_cam_rot.theta3) < π/6  # Yaw within ±30°
         
-        projected_corners = [project(true_cam_pos, known_cam_rot, corner) for corner in runway_corners]
+        projected_corners = SA[project(true_cam_pos, known_cam_rot, corner) for corner in runway_corners]
         
-        # Test 3-DOF estimation setup with units
-        initial_pos_guess = [-450.0u"m", 5.0u"m", 95.0u"m"]  # Close to true position
+        # Test 3-DOF estimation setup with units using StaticArrays
+        initial_pos_guess = SA[-450.0u"m", 5.0u"m", 95.0u"m"]  # Close to true position
         
         # Test initial guess is close to true position
         @test abs(initial_pos_guess[1] - true_cam_pos.x) < 100u"m"
@@ -102,27 +102,27 @@ using Unitful
     end
     
     @testset "Optimization Setup" begin
-        # Test loss function construction with units
-        runway_corners = [WorldPoint(0.0u"m", 0.0u"m", 0.0u"m"), WorldPoint(100.0u"m", 0.0u"m", 0.0u"m")]
-        observed_corners = [ProjectionPoint(100.0u"pixel", 0.0u"pixel"), ProjectionPoint(200.0u"pixel", 0.0u"pixel")]
+        # Test loss function construction with units using StaticArrays
+        runway_corners = SA[WorldPoint(0.0u"m", 0.0u"m", 0.0u"m"), WorldPoint(100.0u"m", 0.0u"m", 0.0u"m")]
+        observed_corners = SA[ProjectionPoint(100.0u"pixel", 0.0u"pixel"), ProjectionPoint(200.0u"pixel", 0.0u"pixel")]
         
         # Test that we can compute reprojection error
         cam_pos = WorldPoint(-100.0u"m", 0.0u"m", 50.0u"m")
         cam_rot = RotZYX(0.0, 0.0, 0.0)
         
-        predicted_corners = [project(cam_pos, cam_rot, corner) for corner in runway_corners]
+        predicted_corners = SA[project(cam_pos, cam_rot, corner) for corner in runway_corners]
         
-        # Compute reprojection errors with units
-        errors = [obs - pred for (obs, pred) in zip(observed_corners, predicted_corners)]
-        error_norms = [sqrt(err.x^2 + err.y^2) for err in errors]
+        # Compute reprojection errors with units using StaticArrays
+        errors = SA[obs - pred for (obs, pred) in zip(observed_corners, predicted_corners)]
+        error_norms = SA[sqrt(err.x^2 + err.y^2) for err in errors]
         
         @test length(errors) == length(runway_corners)
         @test all(isfinite.(ustrip.(error_norms)))
         @test all(error_norms .>= 0u"pixel")
         
-        # Test weighted least squares setup
-        weights = [1.0, 1.0]  # Equal weights (dimensionless)
-        weighted_errors = [w * norm for (w, norm) in zip(weights, error_norms)]
+        # Test weighted least squares setup using StaticArrays
+        weights = SA[1.0, 1.0]  # Equal weights (dimensionless)
+        weighted_errors = SA[w * norm for (w, norm) in zip(weights, error_norms)]
         total_error = sum(weighted_errors.^2)
         
         @test total_error >= 0u"pixel^2"
@@ -146,8 +146,8 @@ using Unitful
         # - Above ground (positive height)
         # - Small attitude angles
         
-        initial_pos = [-800.0u"m", 0.0u"m", 150.0u"m"]  # Typical approach position
-        initial_rot = [0.0, 0.05, 0.0]                  # Slight pitch down for approach (radians)
+        initial_pos = SA[-800.0u"m", 0.0u"m", 150.0u"m"]  # Typical approach position
+        initial_rot = SA[0.0, 0.05, 0.0]                  # Slight pitch down for approach (radians)
         
         @test initial_pos[1] < 0u"m"  # Behind runway
         @test abs(initial_pos[2]) < runway_spec.width_m  # Near centerline
@@ -165,8 +165,8 @@ using Unitful
     end
     
     @testset "Convergence Criteria" begin
-        # Test convergence checking with units
-        residual_history = [10.0u"pixel", 5.0u"pixel", 2.0u"pixel", 1.0u"pixel", 0.5u"pixel", 0.49u"pixel", 0.48u"pixel"]
+        # Test convergence checking with units using StaticArrays
+        residual_history = SA[10.0u"pixel", 5.0u"pixel", 2.0u"pixel", 1.0u"pixel", 0.5u"pixel", 0.49u"pixel", 0.48u"pixel"]
         tolerance = 0.5u"pixel"
         
         # Check if converged (residual below tolerance)

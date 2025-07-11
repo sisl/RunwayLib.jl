@@ -74,9 +74,9 @@ using Unitful
         @test horizontal_fov_deg < 180  # Should be reasonable FOV
         @test horizontal_fov_deg ≈ 31.0 rtol=0.1  # Approximately 31 degrees for this setup
         
-        # Test typical calibration parameter ranges with units
-        focal_lengths = [16.0u"mm", 25.0u"mm", 35.0u"mm", 50.0u"mm", 85.0u"mm"]
-        pixel_sizes = [1.4u"μm", 2.2u"μm", 3.45u"μm", 5.5u"μm", 9.0u"μm"]
+        # Test typical calibration parameter ranges with units using StaticArrays
+        focal_lengths = SA[16.0u"mm", 25.0u"mm", 35.0u"mm", 50.0u"mm", 85.0u"mm"]
+        pixel_sizes = SA[1.4u"μm", 2.2u"μm", 3.45u"μm", 5.5u"μm", 9.0u"μm"]
         
         for f in focal_lengths
             @test f > 0.0u"mm"
