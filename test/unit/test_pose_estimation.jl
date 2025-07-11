@@ -129,4 +129,194 @@ using Distributions
         @test 50u"m" <= approach_height <= 500u"m"      # Typical approach heights
         @test 0.02 <= glide_angle <= 0.2               # Typical glide angles (1-8 degrees)
     end
+
+    @testset "6-DOF Pose Estimation with Random Poses" begin
+        # Define standard runway corners
+        runway_corners = SA[
+            WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),      # near left
+            WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),     # near right
+            WorldPoint(1000.0u"m", 25.0u"m", 0.0u"m"),   # far left
+            WorldPoint(1000.0u"m", -25.0u"m", 0.0u"m"),   # far right
+        ]
+
+        # Test multiple random poses
+        for i in 1:5
+            # Generate random true pose within reasonable bounds
+            true_x = -2000.0 + 1500.0 * rand()  # -2000 to -500 meters
+            true_y = -100.0 + 200.0 * rand()    # -100 to +100 meters  
+            true_z = 50.0 + 400.0 * rand()      # 50 to 450 meters
+            true_roll = -0.3 + 0.6 * rand()     # ±0.3 radians (~±17°)
+            true_pitch = -0.2 + 0.4 * rand()    # ±0.2 radians (~±11°)
+            true_yaw = -0.3 + 0.6 * rand()      # ±0.3 radians (~±17°)
+
+            true_pos = WorldPoint(true_x * u"m", true_y * u"m", true_z * u"m")
+            true_rot = RotZYX(true_roll, true_pitch, true_yaw)
+
+            # Project runway corners to get true observations
+            true_projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_CENTERED) 
+                               for corner in runway_corners]
+
+            # Add noise to observations (±2 pixels standard deviation)
+            noisy_observations = [ProjectionPoint(
+                proj.x + randn() * 2.0 * 1pixel,
+                proj.y + randn() * 2.0 * 1pixel
+            ) for proj in true_projections]
+
+            # Create noise model matching the added noise
+            noise_dists = [Normal(0.0, 2.0) for _ in 1:8]  # 2 components per corner
+            noise_model = UncorrGaussianNoiseModel(noise_dists)
+
+            # Initial guess with some error
+            initial_guess = [
+                true_x + randn() * 100.0,    # ±100m error in position
+                true_y + randn() * 50.0,     # ±50m error in position
+                true_z + randn() * 50.0,     # ±50m error in position
+                true_roll + randn() * 0.1,   # ±0.1 rad error in orientation
+                true_pitch + randn() * 0.1,  # ±0.1 rad error in orientation
+                true_yaw + randn() * 0.1     # ±0.1 rad error in orientation
+            ]
+
+            # Run pose estimation
+            pose_est = estimate_pose_6dof(
+                runway_corners, noisy_observations, CAMERA_CONFIG_CENTERED;
+                noise_model = noise_model,
+                initial_guess = initial_guess
+            )
+
+            # Verify convergence
+            @test pose_est.converged "Pose estimation failed to converge for test $i"
+
+            # Check position accuracy (should be within ~10m given 2-pixel noise)
+            pos_error_x = abs(ustrip(pose_est.position.x - true_pos.x))
+            pos_error_y = abs(ustrip(pose_est.position.y - true_pos.y))
+            pos_error_z = abs(ustrip(pose_est.position.z - true_pos.z))
+
+            @test pos_error_x < 20.0 "X position error too large: $(pos_error_x)m for test $i"
+            @test pos_error_y < 20.0 "Y position error too large: $(pos_error_y)m for test $i"
+            @test pos_error_z < 20.0 "Z position error too large: $(pos_error_z)m for test $i"
+
+            # Check orientation accuracy (should be within ~0.05 radians given noise)
+            rot_error_roll = abs(pose_est.orientation.theta1 - true_rot.theta1)
+            rot_error_pitch = abs(pose_est.orientation.theta2 - true_rot.theta2)
+            rot_error_yaw = abs(pose_est.orientation.theta3 - true_rot.theta3)
+
+            @test rot_error_roll < 0.1 "Roll error too large: $(rot_error_roll) rad for test $i"
+            @test rot_error_pitch < 0.1 "Pitch error too large: $(rot_error_pitch) rad for test $i"
+            @test rot_error_yaw < 0.1 "Yaw error too large: $(rot_error_yaw) rad for test $i"
+
+            # Check residual is reasonable
+            @test ustrip(pose_est.residual_norm) < 10.0 "Residual too large for test $i"
+        end
+    end
+
+    @testset "3-DOF Position Estimation with Random Poses" begin
+        # Define standard runway corners
+        runway_corners = SA[
+            WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),
+            WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),
+            WorldPoint(1000.0u"m", 25.0u"m", 0.0u"m"),
+            WorldPoint(1000.0u"m", -25.0u"m", 0.0u"m"),
+        ]
+
+        # Test multiple random poses with known orientation
+        for i in 1:5
+            # Generate random true position
+            true_x = -1500.0 + 1000.0 * rand()  # -1500 to -500 meters
+            true_y = -80.0 + 160.0 * rand()     # -80 to +80 meters
+            true_z = 60.0 + 300.0 * rand()      # 60 to 360 meters
+
+            # Fixed known orientation
+            known_roll = 0.05 * randn()          # Small roll angle
+            known_pitch = 0.1 + 0.05 * randn()  # Slight pitch down
+            known_yaw = 0.05 * randn()           # Small yaw angle
+
+            true_pos = WorldPoint(true_x * u"m", true_y * u"m", true_z * u"m")
+            known_rot = RotZYX(known_roll, known_pitch, known_yaw)
+
+            # Project runway corners to get true observations
+            true_projections = [project(true_pos, known_rot, corner, CAMERA_CONFIG_CENTERED) 
+                               for corner in runway_corners]
+
+            # Add noise to observations
+            noisy_observations = [ProjectionPoint(
+                proj.x + randn() * 1.5 * 1pixel,
+                proj.y + randn() * 1.5 * 1pixel
+            ) for proj in true_projections]
+
+            # Create noise model
+            noise_dists = [Normal(0.0, 1.5) for _ in 1:8]
+            noise_model = UncorrGaussianNoiseModel(noise_dists)
+
+            # Initial position guess with some error
+            initial_guess = [
+                true_x + randn() * 80.0,   # ±80m error
+                true_y + randn() * 30.0,   # ±30m error
+                true_z + randn() * 40.0    # ±40m error
+            ]
+
+            # Run 3-DOF position estimation
+            pose_est = estimate_pose_3dof(
+                runway_corners, noisy_observations, known_rot, CAMERA_CONFIG_CENTERED;
+                noise_model = noise_model,
+                initial_guess = initial_guess
+            )
+
+            # Verify convergence
+            @test pose_est.converged "3-DOF pose estimation failed to converge for test $i"
+
+            # Check position accuracy
+            pos_error_x = abs(ustrip(pose_est.position.x - true_pos.x))
+            pos_error_y = abs(ustrip(pose_est.position.y - true_pos.y))
+            pos_error_z = abs(ustrip(pose_est.position.z - true_pos.z))
+
+            @test pos_error_x < 15.0 "X position error too large: $(pos_error_x)m for 3-DOF test $i"
+            @test pos_error_y < 15.0 "Y position error too large: $(pos_error_y)m for 3-DOF test $i"
+            @test pos_error_z < 15.0 "Z position error too large: $(pos_error_z)m for 3-DOF test $i"
+
+            # Check that orientation matches the known orientation
+            @test pose_est.orientation.theta1 ≈ known_rot.theta1 atol=1e-10
+            @test pose_est.orientation.theta2 ≈ known_rot.theta2 atol=1e-10
+            @test pose_est.orientation.theta3 ≈ known_rot.theta3 atol=1e-10
+
+            # Check residual is reasonable
+            @test ustrip(pose_est.residual_norm) < 8.0 "Residual too large for 3-DOF test $i"
+        end
+    end
+
+    @testset "Pose Estimation Edge Cases" begin
+        runway_corners = SA[
+            WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),
+            WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),
+            WorldPoint(1000.0u"m", 25.0u"m", 0.0u"m"),
+            WorldPoint(1000.0u"m", -25.0u"m", 0.0u"m"),
+        ]
+
+        # Test with very small noise (should converge to exact solution)
+        true_pos = WorldPoint(-800.0u"m", 20.0u"m", 120.0u"m")
+        true_rot = RotZYX(0.02, 0.08, -0.03)
+
+        true_projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_CENTERED) 
+                           for corner in runway_corners]
+
+        # Add tiny amount of noise
+        tiny_noise_observations = [ProjectionPoint(
+            proj.x + randn() * 0.1 * 1pixel,
+            proj.y + randn() * 0.1 * 1pixel
+        ) for proj in true_projections]
+
+        noise_model = UncorrGaussianNoiseModel([Normal(0.0, 0.1) for _ in 1:8])
+
+        pose_est = estimate_pose_6dof(
+            runway_corners, tiny_noise_observations, CAMERA_CONFIG_CENTERED;
+            noise_model = noise_model,
+            initial_guess = [ustrip(true_pos.x), ustrip(true_pos.y), ustrip(true_pos.z), 
+                           true_rot.theta1, true_rot.theta2, true_rot.theta3]
+        )
+
+        @test pose_est.converged
+        @test abs(ustrip(pose_est.position.x - true_pos.x)) < 1.0  # Very accurate
+        @test abs(ustrip(pose_est.position.y - true_pos.y)) < 1.0
+        @test abs(ustrip(pose_est.position.z - true_pos.z)) < 1.0
+        @test ustrip(pose_est.residual_norm) < 1.0  # Very small residual
+    end
 end
