@@ -200,3 +200,166 @@ samples = sample_noise(noise_model, 100)
 function sample_noise(noise_model::CorrGaussianNoiseModel, n_samples::Int=1)
     return rand(noise_model.distribution, n_samples)
 end
+"""
+Noise models for uncertainty quantification in runway pose estimation.
+
+This module defines noise models that can be used with pose estimation
+and integrity monitoring. It integrates with ProbabilisticParameterEstimators
+for consistent noise modeling.
+"""
+
+using Distributions
+using LinearAlgebra
+
+# Re-export noise models from ProbabilisticParameterEstimators
+using ..ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel
+export UncorrGaussianNoiseModel, CorrGaussianNoiseModel
+
+"""
+    create_pixel_noise_model(pixel_std::Real, n_corners::Int) -> UncorrGaussianNoiseModel
+
+Create uncorrelated Gaussian noise model for pixel observations.
+
+# Arguments
+- `pixel_std`: Standard deviation of pixel noise (in pixels)
+- `n_corners`: Number of runway corners being observed
+
+# Returns
+- `UncorrGaussianNoiseModel` with 2*n_corners Normal distributions
+
+# Examples
+```julia
+# 2-pixel noise for 4 corners (8 observations total)
+noise_model = create_pixel_noise_model(2.0, 4)
+```
+"""
+function create_pixel_noise_model(pixel_std::Real, n_corners::Int)
+    distributions = [Normal(0.0, pixel_std) for _ in 1:(2*n_corners)]
+    return UncorrGaussianNoiseModel(distributions)
+end
+
+"""
+    create_corner_noise_model(corner_covariances::AbstractVector{<:AbstractMatrix}) -> UncorrGaussianNoiseModel
+
+Create noise model from individual corner covariance matrices.
+
+# Arguments
+- `corner_covariances`: Vector of 2×2 covariance matrices, one per corner
+
+# Returns
+- `UncorrGaussianNoiseModel` with MvNormal distributions for each corner
+
+# Examples
+```julia
+# Different noise for each corner
+corner_covs = [
+    [4.0 0.5; 0.5 4.0],  # Corner 1: correlated x,y noise
+    [2.0 0.0; 0.0 2.0],  # Corner 2: uncorrelated noise
+    [3.0 1.0; 1.0 3.0],  # Corner 3: different correlation
+    [1.0 0.0; 0.0 1.0]   # Corner 4: low noise
+]
+noise_model = create_corner_noise_model(corner_covs)
+```
+"""
+function create_corner_noise_model(corner_covariances::AbstractVector{<:AbstractMatrix})
+    distributions = [MvNormal(zeros(2), cov) for cov in corner_covariances]
+    return UncorrGaussianNoiseModel(distributions)
+end
+
+"""
+    create_full_correlated_noise_model(covariance_matrix::AbstractMatrix) -> CorrGaussianNoiseModel
+
+Create fully correlated noise model for all pixel observations.
+
+# Arguments
+- `covariance_matrix`: Full covariance matrix for all observations
+
+# Returns
+- `CorrGaussianNoiseModel` with full correlation structure
+
+# Examples
+```julia
+# 8×8 covariance matrix for 4 corners (8 pixel coordinates)
+Σ = create_block_diagonal_covariance([
+    [4.0 0.5; 0.5 4.0],  # Corner 1
+    [2.0 0.0; 0.0 2.0],  # Corner 2
+    [3.0 1.0; 1.0 3.0],  # Corner 3
+    [1.0 0.0; 0.0 1.0]   # Corner 4
+])
+noise_model = create_full_correlated_noise_model(Σ)
+```
+"""
+function create_full_correlated_noise_model(covariance_matrix::AbstractMatrix)
+    n = size(covariance_matrix, 1)
+    return CorrGaussianNoiseModel(MvNormal(zeros(n), covariance_matrix))
+end
+
+"""
+    create_block_diagonal_covariance(corner_covariances::AbstractVector{<:AbstractMatrix}) -> Matrix
+
+Create block-diagonal covariance matrix from individual corner covariances.
+
+# Arguments
+- `corner_covariances`: Vector of 2×2 covariance matrices, one per corner
+
+# Returns
+- Block-diagonal matrix with corner covariances on the diagonal
+
+# Examples
+```julia
+corner_covs = [
+    [4.0 0.5; 0.5 4.0],
+    [2.0 0.0; 0.0 2.0]
+]
+Σ = create_block_diagonal_covariance(corner_covs)
+# Results in 4×4 matrix with 2×2 blocks on diagonal
+```
+"""
+function create_block_diagonal_covariance(corner_covariances::AbstractVector{<:AbstractMatrix})
+    n_corners = length(corner_covariances)
+    total_size = 2 * n_corners
+    
+    Σ = zeros(total_size, total_size)
+    
+    for (i, cov) in enumerate(corner_covariances)
+        row_start = 2*(i-1) + 1
+        row_end = 2*i
+        col_start = row_start
+        col_end = row_end
+        
+        Σ[row_start:row_end, col_start:col_end] = cov
+    end
+    
+    return Σ
+end
+
+"""
+    extract_noise_model_from_uncertainties(
+        uncertainties::AbstractVector{<:AbstractMatrix}
+    ) -> UncorrGaussianNoiseModel
+
+Extract noise model from uncertainty matrices (e.g., from computer vision predictions).
+
+# Arguments
+- `uncertainties`: Vector of 2×2 uncertainty matrices, one per corner
+
+# Returns
+- `UncorrGaussianNoiseModel` based on the uncertainty matrices
+
+# Examples
+```julia
+# From computer vision uncertainty predictions
+uncertainties = [
+    [σ²_x1 σ_xy1; σ_xy1 σ²_y1],  # Corner 1 uncertainty
+    [σ²_x2 σ_xy2; σ_xy2 σ²_y2],  # Corner 2 uncertainty
+    # ...
+]
+noise_model = extract_noise_model_from_uncertainties(uncertainties)
+```
+"""
+function extract_noise_model_from_uncertainties(
+    uncertainties::AbstractVector{<:AbstractMatrix}
+)
+    distributions = [MvNormal(zeros(2), unc) for unc in uncertainties]
+    return UncorrGaussianNoiseModel(distributions)
+end

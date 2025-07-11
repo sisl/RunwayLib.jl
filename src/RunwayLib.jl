@@ -6,6 +6,7 @@ using Rotations
 using Unitful
 using Distributions
 using TypedTables
+using SimpleNonlinearSolve
 
 # Define custom pixel unit
 @unit pixel "pixel" Pixel 1 false
@@ -24,6 +25,8 @@ export RunwaySpec, PoseEstimate
 
 # Export noise models
 export UncorrGaussianNoiseModel, CorrGaussianNoiseModel
+export create_pixel_noise_model, create_corner_noise_model, create_full_correlated_noise_model
+export create_block_diagonal_covariance, extract_noise_model_from_uncertainties
 
 # Export camera model functions
 export get_focal_length_pixels, get_field_of_view, pixel_to_ray_direction
@@ -47,15 +50,11 @@ include("camera_model/projection.jl")
 include("data_management/runway_database.jl")
 include("pose_estimation/types.jl")
 include("uncertainty_quantification/noise_models.jl")
+include("pose_estimation/optimization.jl")
 
-# Placeholder functions for future implementation
-function estimate_pose_6dof(runway_spec, corners, pixel_uncertainties; initial_guess=nothing)
-    error("estimate_pose_6dof not yet implemented")
-end
-
-function estimate_pose_3dof(runway_spec, corners, known_orientation; initial_guess=nothing)
-    error("estimate_pose_3dof not yet implemented")
-end
+# Export pose estimation functions
+export estimate_pose_6dof, estimate_pose_3dof
+export build_pose_optimization_function, build_covariance_matrix
 
 function compute_raim_statistic(pose_estimate, runway_spec, corners, noise_model)
     error("compute_raim_statistic not yet implemented")
