@@ -17,6 +17,7 @@ XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 julia = "1.9"
 LinearAlgebra = "1"
