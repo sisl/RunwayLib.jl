@@ -1,0 +1,125 @@
+"""
+Coordinate system type definitions for runway pose estimation.
+
+This module defines the three main coordinate systems used:
+- WorldPoint: Runway-relative world coordinates
+- CameraPoint: Camera-centric coordinates  
+- ProjectionPoint: Image projection coordinates
+"""
+
+using StaticArrays
+using Unitful
+
+"""
+    WorldPoint{T} <: FieldVector{3, T}
+
+Point in world coordinate system (runway-relative).
+
+# Fields
+- `x::T`: Along-track distance (positive towards far end of runway)
+- `y::T`: Cross-track distance (positive towards right side of runway)
+- `z::T`: Height above runway surface (positive upward)
+
+# Units
+Typically uses meters (u"m") for all coordinates.
+
+# Examples
+```julia
+# Create a point 500m before runway threshold, 10m right of centerline, 100m high
+wp = WorldPoint(-500.0u"m", 10.0u"m", 100.0u"m")
+
+# Access coordinates
+println("Along-track: ", wp.x)
+println("Cross-track: ", wp.y) 
+println("Height: ", wp.z)
+
+# Arithmetic operations
+wp2 = WorldPoint(100.0u"m", 0.0u"m", 50.0u"m")
+wp_sum = wp + wp2  # Element-wise addition
+wp_scaled = 2.0 * wp  # Scalar multiplication
+```
+"""
+struct WorldPoint{T} <: FieldVector{3, T}
+    x::T  # Along-track distance
+    y::T  # Cross-track distance
+    z::T  # Height above runway
+end
+
+"""
+    CameraPoint{T} <: FieldVector{3, T}
+
+Point in camera coordinate system.
+
+# Fields
+- `x::T`: Camera forward direction (positive towards scene)
+- `y::T`: Camera right direction (positive to the right)
+- `z::T`: Camera down direction (positive downward)
+
+# Units
+Typically uses meters (u"m") for all coordinates.
+
+# Coordinate System Convention
+- X-axis: Forward (into the scene)
+- Y-axis: Right (to the right of the camera)
+- Z-axis: Down (downward from camera)
+
+This follows the standard computer vision convention.
+
+# Examples
+```julia
+# Point 10m in front of camera, 2m to the right, 1m below
+cp = CameraPoint(10.0u"m", 2.0u"m", 1.0u"m")
+
+# Access coordinates
+println("Forward: ", cp.x)
+println("Right: ", cp.y)
+println("Down: ", cp.z)
+```
+"""
+struct CameraPoint{T} <: FieldVector{3, T}
+    x::T  # Camera forward direction
+    y::T  # Camera right direction  
+    z::T  # Camera down direction
+end
+
+"""
+    ProjectionPoint{T} <: FieldVector{2, T}
+
+Point in image projection coordinate system.
+
+# Fields
+- `x::T`: Image x-coordinate (horizontal pixel position)
+- `y::T`: Image y-coordinate (vertical pixel position)
+
+# Units
+Typically uses pixels (u"pixel") for coordinates.
+
+# Coordinate System Convention
+- Origin at top-left corner of image
+- X-axis: Horizontal (positive to the right)
+- Y-axis: Vertical (positive downward)
+
+This follows the standard image coordinate convention.
+
+# Examples
+```julia
+# Pixel at column 1024, row 768
+pp = ProjectionPoint(1024.0u"pixel", 768.0u"pixel")
+
+# Access coordinates
+println("Column: ", pp.x)
+println("Row: ", pp.y)
+
+# Fractional pixels are supported
+pp_sub = ProjectionPoint(1024.5u"pixel", 768.25u"pixel")
+```
+"""
+struct ProjectionPoint{T} <: FieldVector{2, T}
+    x::T  # Image x-coordinate (pixels)
+    y::T  # Image y-coordinate (pixels)
+end
+
+# Convenience constructors for common use cases
+WorldPoint(x, y, z) = WorldPoint{typeof(x)}(x, y, z)
+CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
+ProjectionPoint(x, y) = ProjectionPoint{typeof(x)}(x, y)
