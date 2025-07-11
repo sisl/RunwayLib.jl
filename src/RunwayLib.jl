@@ -1,4 +1,4 @@
-module RunwayPoseEstimation
+module RunwayLib
 
 using LinearAlgebra
 using StaticArrays
@@ -68,4 +68,4 @@ function extract_uncertainties(flight_data_row)
     error("extract_uncertainties not yet implemented")
 end
 
-end # module RunwayPoseEstimation
+end # module RunwayLib
