@@ -1,7 +1,6 @@
 using Test
 using RunwayLib
-using DataFrames
-using CSV
+using TypedTables
 using Unitful
 
 @testset "Data Management" begin
@@ -33,8 +32,8 @@ using Unitful
     end
 
     @testset "Flight Data Processing" begin
-        # Create mock flight data with units
-        mock_data = DataFrame(
+        # Create mock flight data with units using TypedTables
+        mock_data = Table(
             timestamp = [1.0, 2.0, 3.0],
             airport_runway = ["KORD_10L", "KORD_10L", "KORD_10L"],
             gt_along_track_distance_m = [-1000.0u"m", -800.0u"m", -600.0u"m"],
@@ -53,8 +52,8 @@ using Unitful
             pred_kp_top_right_y_px = [800.0 * 1pixel, 810.0 * 1pixel, 820.0 * 1pixel]
         )
 
-        @test nrow(mock_data) == 3
-        @test "airport_runway" in names(mock_data)
+        @test length(mock_data) == 3
+        @test haskey(mock_data, :airport_runway)
         @test all(mock_data.gt_along_track_distance_m .< 0u"m")  # Aircraft approaching
         @test all(mock_data.gt_height_m .> 0u"m")  # Aircraft above ground
 
@@ -82,9 +81,11 @@ using Unitful
 
     @testset "Data Validation" begin
         # Test missing data detection with units
-        invalid_data = DataFrame(
+        # Note: TypedTables handles missing values differently - they need to be Union types
+        valid_distances = Union{typeof(1.0u"m"), Missing}[-1000.0u"m", missing]
+        invalid_data = Table(
             airport_runway = ["KORD_10L", "KORD_10L"],
-            gt_along_track_distance_m = [-1000.0u"m", missing],
+            gt_along_track_distance_m = valid_distances,
             pred_kp_bottom_left_x_px = [1000.0 * 1pixel, 1010.0 * 1pixel]
         )
 

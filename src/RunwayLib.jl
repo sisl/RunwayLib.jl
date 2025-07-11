@@ -5,6 +5,7 @@ using StaticArrays
 using Rotations
 using Unitful
 using Distributions
+using TypedTables
 
 # Define custom pixel unit
 @unit pixel "pixel" Pixel 1 false
@@ -29,6 +30,9 @@ export get_focal_length_pixels, get_field_of_view, pixel_to_ray_direction
 
 # Export runway database functions
 export get_runway_corners, validate_runway_spec
+
+# Export TypedTables for data management
+export Table
 
 # Export configuration
 export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig, DEFAULT_OPTIMIZATION_CONFIG
@@ -66,15 +70,15 @@ function load_runway_database(filename)
 end
 
 function load_flight_data(filename)
-    error("load_flight_data not yet implemented")
+    error("load_flight_data not yet implemented - will return TypedTables.Table")
 end
 
 function extract_runway_corners(flight_data_row)
-    error("extract_runway_corners not yet implemented")
+    error("extract_runway_corners not yet implemented - accepts TypedTables row")
 end
 
 function extract_uncertainties(flight_data_row)
-    error("extract_uncertainties not yet implemented")
+    error("extract_uncertainties not yet implemented - accepts TypedTables row")
 end
 
 end # module RunwayLib
