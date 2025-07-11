@@ -1,0 +1,41 @@
+name = "RunwayPoseEstimation"
+uuid = "12345678-1234-5678-9abc-123456789abc"
+authors = ["Your Name <your.email@example.com>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Rotations = "6038ab10-8711-5258-84ad-4b1120ba62dc"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+NonlinearSolve = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+AlgebraOfGraphics = "cbdf2221-f076-402e-a563-3d30da359d67"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1.9"
+LinearAlgebra = "1"
+Distributions = "0.25"
+Rotations = "1.6"
+StaticArrays = "1.9"
+NonlinearSolve = "3"
+ForwardDiff = "0.10"
+DifferentiationInterface = "0.5"
+CSV = "0.10"
+DataFrames = "1.6"
+XLSX = "0.10"
+CairoMakie = "0.11"
+AlgebraOfGraphics = "0.6"
+Test = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
