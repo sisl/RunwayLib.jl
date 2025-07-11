@@ -78,7 +78,7 @@ println("Down: ", cp.z)
 """
 struct CameraPoint{T} <: FieldVector{3, T}
     x::T  # Camera forward direction
-    y::T  # Camera right direction  
+    y::T  # Camera right direction
     z::T  # Camera down direction
 end
 
@@ -131,4 +131,5 @@ end
 WorldPoint(x, y, z) = WorldPoint{typeof(x)}(x, y, z)
 CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
 ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
-ProjectionPoint{T}(x, y) where T = ProjectionPoint{T, :offset}(x, y)
+ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x, y)  # Default to offset coordinates
+ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
