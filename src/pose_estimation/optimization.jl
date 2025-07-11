@@ -59,10 +59,10 @@ function build_pose_optimization_function(
         projected_corners = [project(cam_pos, cam_rot, corner, config) for corner in runway_corners]
         
         # Compute reprojection errors
-        error_pairs = map(zip(projected_corners, observed_corners)) do (proj, obs)
-            [ustrip(proj.x - obs.x), ustrip(proj.y - obs.y)]
+        error_vectors = map(zip(projected_corners, observed_corners)) do (proj, obs)
+            ustrip.(proj - obs)
         end
-        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_pairs)...)
+        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_vectors)...)
         
         # Apply noise weighting via Cholesky decomposition
         return U' \ errors
@@ -210,10 +210,10 @@ function estimate_pose_3dof(
         projected_corners = [project(cam_pos, cam_rot, corner, config) for corner in runway_corners]
         
         # Compute reprojection errors
-        error_pairs = map(zip(projected_corners, observed_corners)) do (proj, obs)
-            [ustrip(proj.x - obs.x), ustrip(proj.y - obs.y)]
+        error_vectors = map(zip(projected_corners, observed_corners)) do (proj, obs)
+            ustrip.(proj - obs)
         end
-        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_pairs)...)
+        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_vectors)...)
         
         # Apply noise weighting via Cholesky decomposition
         return U' \ errors
