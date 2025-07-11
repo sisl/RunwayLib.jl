@@ -110,10 +110,10 @@ using Unitful
                 cam_pos = WorldPoint(-100.0u"m", 0.0u"m", 50.0u"m")
                 cam_rot = RotZYX(0.0, 0.0, 0.0)
 
-                predicted_corners = SA[project(cam_pos, cam_rot, corner) for corner in runway_corners]
+                predicted_corners = SA[project(cam_pos, cam_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
 
                 # Compute reprojection errors with units using StaticArrays
-                errors = SA[obs - pred for (obs, pred) in zip(observed_corners, predicted_corners)]
+                errors = SA[ProjectionPoint(obs.x - pred.x, obs.y - pred.y) for (obs, pred) in zip(observed_corners, predicted_corners)]
                 error_norms = SA[sqrt(err.x^2 + err.y^2) for err in errors]
 
                 @test length(errors) == length(runway_corners)

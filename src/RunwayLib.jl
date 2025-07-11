@@ -31,7 +31,7 @@ export get_focal_length_pixels, get_field_of_view, pixel_to_ray_direction
 export get_runway_corners, validate_runway_spec
 
 # Export configuration
-export CAMERA_CONFIG, DEFAULT_OPTIMIZATION_CONFIG
+export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig, DEFAULT_OPTIMIZATION_CONFIG
 
 # Export custom units
 export pixel

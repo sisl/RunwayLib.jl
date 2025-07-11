@@ -103,13 +103,13 @@ using Unitful
         known_rot = RotZYX(0.0, 0.06, 0.0)  # 6 degrees pitch down
 
         # Perfect projections (no noise) using StaticArrays
-        perfect_projections = SA[project(known_pos, known_rot, corner) for corner in synthetic_runway]
+        perfect_projections = SA[project(known_pos, known_rot, corner, CAMERA_CONFIG_OFFSET) for corner in synthetic_runway]
 
         # Test that we can recover the known pose (in principle)
         # This would be validated by actual pose estimation implementation
 
         # Test projection consistency using StaticArrays
-        reprojected = SA[project(known_pos, known_rot, corner) for corner in synthetic_runway]
+        reprojected = SA[project(known_pos, known_rot, corner, CAMERA_CONFIG_OFFSET) for corner in synthetic_runway]
         projection_errors = SA[norm([p1.x - p2.x, p1.y - p2.y]) for (p1, p2) in zip(perfect_projections, reprojected)]
 
         @test all(ustrip.(projection_errors) .< 1e-10)  # Should be numerically identical
@@ -142,7 +142,7 @@ using Unitful
             WorldPoint(1000.0u"m", -25.0u"m", 0.0u"m")
         ]
 
-        true_projections = SA[project(true_pos, true_rot, corner) for corner in runway_corners]
+        true_projections = SA[project(true_pos, true_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
 
         # Generate Monte Carlo samples using StaticArrays
         noisy_projection_samples = []
@@ -184,7 +184,7 @@ using Unitful
         n_projections = 1000
         start_time = time()
         for _ in 1:n_projections
-            project(pos, rot, world_pt)
+            project(pos, rot, world_pt, CAMERA_CONFIG_OFFSET)
         end
         projection_time = time() - start_time
 
@@ -208,7 +208,7 @@ using Unitful
         # This would be more sophisticated in practice
         initial_memory = Base.gc_bytes()
         for _ in 1:100
-            project(pos, rot, world_pt)
+            project(pos, rot, world_pt, CAMERA_CONFIG_OFFSET)
         end
         final_memory = Base.gc_bytes()
 
@@ -231,7 +231,7 @@ using Unitful
 
         for (pos, rot) in extreme_poses
             try
-                proj = project(pos, rot, runway_corner)
+                proj = project(pos, rot, runway_corner, CAMERA_CONFIG_OFFSET)
                 @test isfinite(ustrip(proj.x)) && isfinite(ustrip(proj.y))
             catch e
                 # Some extreme cases may legitimately fail (e.g., point behind camera)

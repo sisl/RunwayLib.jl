@@ -59,7 +59,7 @@ using Unitful
         end
 
         @testset "ProjectionPoint" begin
-                # Test construction with pixel units
+                # Test construction with pixel units (default offset coordinates)
                 pp = ProjectionPoint(100.0 * 1pixel, 200.0 * 1pixel)
                 @test pp.x == 100.0 * 1pixel
                 @test pp.y == 200.0 * 1pixel
@@ -72,12 +72,23 @@ using Unitful
                 # Test arithmetic operations
                 pp2 = ProjectionPoint(50.0 * 1pixel, 75.0 * 1pixel)
                 pp_sum = pp + pp2
-                @test pp_sum == ProjectionPoint(150.0 * 1pixel, 275.0 * 1pixel)
+                @test pp_sum.x == 150.0 * 1pixel
+                @test pp_sum.y == 275.0 * 1pixel
 
                 # Test fractional pixels
                 pp_sub = ProjectionPoint(100.5 * 1pixel, 200.25 * 1pixel)
                 @test pp_sub.x == 100.5 * 1pixel
                 @test pp_sub.y == 200.25 * 1pixel
+
+                # Test centered coordinates
+                pp_centered = ProjectionPoint{Float64, :centered}(-50.0 * 1pixel, 25.0 * 1pixel)
+                @test pp_centered.x == -50.0 * 1pixel
+                @test pp_centered.y == 25.0 * 1pixel
+
+                # Test offset coordinates explicitly
+                pp_offset = ProjectionPoint{Float64, :offset}(1024.0 * 1pixel, 768.0 * 1pixel)
+                @test pp_offset.x == 1024.0 * 1pixel
+                @test pp_offset.y == 768.0 * 1pixel
         end
 
         @testset "Coordinate Transformations" begin
@@ -120,19 +131,28 @@ using Unitful
                 cam_rot = RotZYX(0.0, 0.0, 0.0)
                 world_pt = WorldPoint(1.0u"m", 0.1u"m", 0.1u"m")  # Point in front of camera
 
+                # Test with default (offset) coordinates
                 proj_pt = project(cam_pos, cam_rot, world_pt)
                 @test isa(proj_pt, ProjectionPoint)
 
+                # Test with explicit coordinate systems
+                proj_pt_offset = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_OFFSET)
+                proj_pt_centered = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_CENTERED)
+                
+                @test isa(proj_pt_offset, ProjectionPoint)
+                @test isa(proj_pt_centered, ProjectionPoint)
+
                 # Test that points at camera position cannot be projected (division by zero)
                 world_pt_at_camera = WorldPoint(0.0u"m", 0.0u"m", 0.0u"m")
-                @test_throws DivideError project(cam_pos, cam_rot, world_pt_at_camera)
+                @test_throws DivideError project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_OFFSET)
+                @test_throws DivideError project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_CENTERED)
 
                 # Test projection consistency - points further away should project closer to center
                 world_pt_near = WorldPoint(1.0u"m", 0.1u"m", 0.0u"m")
                 world_pt_far = WorldPoint(10.0u"m", 1.0u"m", 0.0u"m")  # Same angle but further
 
-                proj_near = project(cam_pos, cam_rot, world_pt_near)
-                proj_far = project(cam_pos, cam_rot, world_pt_far)
+                proj_near = project(cam_pos, cam_rot, world_pt_near, CAMERA_CONFIG_OFFSET)
+                proj_far = project(cam_pos, cam_rot, world_pt_far, CAMERA_CONFIG_OFFSET)
 
                 # Both should have same projection (similar triangles)
                 @test proj_near.x ≈ proj_far.x atol = 1e-6 * 1pixel

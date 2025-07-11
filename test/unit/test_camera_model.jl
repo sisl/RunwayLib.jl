@@ -31,18 +31,29 @@ using Unitful
                 cam_rot = RotZYX(0.0, 0.0, 0.0)
                 world_pt = WorldPoint(0.0u"m", 0.0u"m", 0.0u"m")
 
-                proj_pt = project(cam_pos, cam_rot, world_pt)
-                @test isa(proj_pt, ProjectionPoint)
-                @test isfinite(ustrip(proj_pt.x))
-                @test isfinite(ustrip(proj_pt.y))
+                # Test with both coordinate systems
+                proj_pt_offset = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_OFFSET)
+                proj_pt_centered = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_CENTERED)
+                
+                @test isa(proj_pt_offset, ProjectionPoint)
+                @test isa(proj_pt_centered, ProjectionPoint)
+                @test isfinite(ustrip(proj_pt_offset.x))
+                @test isfinite(ustrip(proj_pt_offset.y))
+                @test isfinite(ustrip(proj_pt_centered.x))
+                @test isfinite(ustrip(proj_pt_centered.y))
 
                 # Test projection of point directly in front of camera
                 world_pt_front = WorldPoint(-999.0u"m", 0.0u"m", 100.0u"m")  # 1m in front
-                proj_front = project(cam_pos, cam_rot, world_pt_front)
+                proj_front_offset = project(cam_pos, cam_rot, world_pt_front, CAMERA_CONFIG_OFFSET)
+                proj_front_centered = project(cam_pos, cam_rot, world_pt_front, CAMERA_CONFIG_CENTERED)
 
-                # Should project near image center
-                @test abs(proj_front.x) < 100 * 1pixel  # Within 100 pixels of center
-                @test abs(proj_front.y) < 100 * 1pixel
+                # For offset coordinates: should project near image center
+                @test abs(proj_front_offset.x - CAMERA_CONFIG_OFFSET.optical_center_u) < 100 * 1pixel
+                @test abs(proj_front_offset.y - CAMERA_CONFIG_OFFSET.optical_center_v) < 100 * 1pixel
+                
+                # For centered coordinates: should project near origin
+                @test abs(proj_front_centered.x) < 100 * 1pixel
+                @test abs(proj_front_centered.y) < 100 * 1pixel
 
                 # Test focal length in pixels
                 focal_length = 25.0u"mm"
@@ -104,7 +115,15 @@ using Unitful
                 @test proj_pt.y ≈ proj_pt2.y
 
                 # Test pixel to ray direction concepts
-                pixel_point = ProjectionPoint(2048.0 * 1pixel, 1500.0 * 1pixel)  # At optical center
+                pixel_point_offset = ProjectionPoint{Float64, :offset}(2048.0 * 1pixel, 1500.0 * 1pixel)
+                pixel_point_centered = ProjectionPoint{Float64, :centered}(0.0 * 1pixel, 0.0 * 1pixel)
+                
+                ray_dir_offset = pixel_to_ray_direction(pixel_point_offset, CAMERA_CONFIG_OFFSET)
+                ray_dir_centered = pixel_to_ray_direction(pixel_point_centered, CAMERA_CONFIG_CENTERED)
+                
+                @test isa(ray_dir_offset, CameraPoint)
+                @test isa(ray_dir_centered, CameraPoint)
+                
                 focal_length = 25.0u"mm"
                 pixel_size = 3.45u"μm"
 

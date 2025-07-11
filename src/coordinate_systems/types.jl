@@ -83,38 +83,46 @@ struct CameraPoint{T} <: FieldVector{3, T}
 end
 
 """
-    ProjectionPoint{T} <: FieldVector{2, T}
+    ProjectionPoint{T, S} <: FieldVector{2, T}
 
 Point in image projection coordinate system.
+
+# Type Parameters
+- `T`: Numeric type for coordinates
+- `S`: Coordinate system type (`:centered` or `:offset`)
 
 # Fields
 - `x::T`: Image x-coordinate (horizontal pixel position)
 - `y::T`: Image y-coordinate (vertical pixel position)
 
 # Units
-Typically uses pixels (*1pixel) for coordinates.
+Typically uses pixels (1pixel) for coordinates.
 
-# Coordinate System Convention
+# Coordinate System Conventions
+For `:centered` coordinates:
+- Origin at image center
+- X-axis: Horizontal (positive to the left, following cross-track convention)
+- Y-axis: Vertical (positive upward, following height convention)
+
+For `:offset` coordinates:
 - Origin at top-left corner of image
 - X-axis: Horizontal (positive to the right)
 - Y-axis: Vertical (positive downward)
 
-This follows the standard image coordinate convention.
-
 # Examples
 ```julia
-# Pixel at column 1024, row 768
-pp = ProjectionPoint(1024.0*1pixel, 768.0*1pixel)
+# Centered coordinates (origin at image center)
+pp_centered = ProjectionPoint{Float64, :centered}(-100.0*1pixel, 50.0*1pixel)
+
+# Offset coordinates (origin at top-left)
+pp_offset = ProjectionPoint{Float64, :offset}(1024.0*1pixel, 768.0*1pixel)
 
 # Access coordinates
-println("Column: ", pp.x)
-println("Row: ", pp.y)
-
-# Fractional pixels are supported
-pp_sub = ProjectionPoint(1024.5*1pixel, 768.25*1pixel)
+println("X: ", pp_centered.x)
+println("Y: ", pp_centered.y)
 ```
 """
-struct ProjectionPoint{T} <: FieldVector{2, T}
+struct ProjectionPoint{T, S} <: FieldVector{2, T}
     x::T  # Image x-coordinate (pixels)
     y::T  # Image y-coordinate (pixels)
 end
@@ -122,4 +130,5 @@ end
 # Convenience constructors for common use cases
 WorldPoint(x, y, z) = WorldPoint{typeof(x)}(x, y, z)
 CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
-ProjectionPoint(x, y) = ProjectionPoint{typeof(x)}(x, y)
+ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
+ProjectionPoint{T}(x, y) where T = ProjectionPoint{T, :offset}(x, y)
