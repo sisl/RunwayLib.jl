@@ -92,7 +92,7 @@ Point in image projection coordinate system.
 - `y::T`: Image y-coordinate (vertical pixel position)
 
 # Units
-Typically uses pixels (u"pixel") for coordinates.
+Typically uses pixels (*1pixel) for coordinates.
 
 # Coordinate System Convention
 - Origin at top-left corner of image
@@ -104,14 +104,14 @@ This follows the standard image coordinate convention.
 # Examples
 ```julia
 # Pixel at column 1024, row 768
-pp = ProjectionPoint(1024.0u"pixel", 768.0u"pixel")
+pp = ProjectionPoint(1024.0*1pixel, 768.0*1pixel)
 
 # Access coordinates
 println("Column: ", pp.x)
 println("Row: ", pp.y)
 
 # Fractional pixels are supported
-pp_sub = ProjectionPoint(1024.5u"pixel", 768.25u"pixel")
+pp_sub = ProjectionPoint(1024.5*1pixel, 768.25*1pixel)
 ```
 """
 struct ProjectionPoint{T} <: FieldVector{2, T}
