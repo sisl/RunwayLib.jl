@@ -2,6 +2,7 @@ using Test
 using RunwayLib
 using TypedTables
 using Unitful
+using StatsBase
 
 @testset "Data Management" begin
     @testset "Runway Database" begin
@@ -53,7 +54,7 @@ using Unitful
         )
 
         @test length(mock_data) == 3
-        @test haskey(mock_data, :airport_runway)
+        @test :airport_runway in columnnames(mock_data)
         @test all(mock_data.gt_along_track_distance_m .< 0u"m")  # Aircraft approaching
         @test all(mock_data.gt_height_m .> 0u"m")  # Aircraft above ground
 
@@ -62,7 +63,7 @@ using Unitful
         @test all(isfinite.(ustrip.(mock_data.pred_kp_bottom_left_x_px)))
 
         # Test corner extraction with units
-        corners_row1 = [
+        corners_row1 = SA[
             ProjectionPoint(mock_data.pred_kp_bottom_left_x_px[1], mock_data.pred_kp_bottom_left_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_bottom_right_x_px[1], mock_data.pred_kp_bottom_right_y_px[1]),
             ProjectionPoint(mock_data.pred_kp_top_left_x_px[1], mock_data.pred_kp_top_left_y_px[1]),
@@ -132,7 +133,7 @@ using Unitful
 
         # Test corner ordering consistency with units
         # Corners should form a reasonable quadrilateral
-        corners = [
+        corners = SA[
             ProjectionPoint(100.0 * 1pixel, 200.0 * 1pixel),   # bottom_left
             ProjectionPoint(300.0 * 1pixel, 200.0 * 1pixel),   # bottom_right
             ProjectionPoint(120.0 * 1pixel, 100.0 * 1pixel),   # top_left
