@@ -10,12 +10,12 @@ using Unitful
 
 # Default camera configuration with units
 const CAMERA_CONFIG = (
-    focal_length = 25.0u"mm",           # Focal length
-    pixel_size = 3.45u"μm",             # Physical pixel size
-    image_width = 4096u"pixel",         # Image width in pixels
-    image_height = 3000u"pixel",        # Image height in pixels
-    optical_center_u = 2047.5u"pixel",  # Principal point x-coordinate
-    optical_center_v = 1499.5u"pixel"   # Principal point y-coordinate
+    focal_length=25.0u"mm",           # Focal length
+    pixel_size=3.45u"μm" / 1pixel,             # Physical pixel size
+    image_width=4096 * 1pixel,         # Image width in pixels
+    image_height=3000 * 1pixel,        # Image height in pixels
+    optical_center_u=2047.5 * 1pixel,  # Principal point x-coordinate
+    optical_center_v=1499.5 * 1pixel   # Principal point y-coordinate
 )
 
 """
@@ -67,40 +67,40 @@ pixel_coords = project(cam_pos, cam_rot, runway_corner)
 println("Pixel coordinates: (", pixel_coords.x, ", ", pixel_coords.y, ")")
 ```
 """
-function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint; 
-                config=CAMERA_CONFIG)
+function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint;
+    config=CAMERA_CONFIG)
     # Transform to camera coordinates
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
-    
+
     # Check if point is in front of camera
     if ustrip(cam_pt.x) <= 0
-        throw(DivideError("Point is at or behind camera (X ≤ 0)"))
+        throw(DivideError())
     end
-    
+
     # Extract camera parameters
     focal_length = config.focal_length
     pixel_size = config.pixel_size
     optical_center_u = config.optical_center_u
     optical_center_v = config.optical_center_v
-    
+
     # Calculate focal length in pixels
-    f_pixels = focal_length / pixel_size
-    
+    f_pixels = uconvert(pixel, focal_length / pixel_size)
+
     # Apply pinhole projection model
     # Note: In camera coordinates, X is forward, Y is right, Z is down
     # Standard projection: u = f * (Y/X), v = f * (Z/X)
     u_centered = f_pixels * (cam_pt.y / cam_pt.x)
     v_centered = f_pixels * (cam_pt.z / cam_pt.x)
-    
+
     # Convert to image coordinates (add principal point)
     u = u_centered + optical_center_u
     v = v_centered + optical_center_v
-    
+
     # Check for valid pixel coordinates
     if !isfinite(ustrip(u)) || !isfinite(ustrip(v))
         throw(DomainError("Invalid projection coordinates"))
     end
-    
+
     return ProjectionPoint(u, v)
 end
 
@@ -147,11 +147,11 @@ function get_field_of_view(config=CAMERA_CONFIG)
     # Calculate sensor dimensions
     sensor_width = config.image_width * config.pixel_size
     sensor_height = config.image_height * config.pixel_size
-    
+
     # Calculate field of view angles
     horizontal_fov = 2 * atan(ustrip(sensor_width) / (2 * ustrip(config.focal_length)))
     vertical_fov = 2 * atan(ustrip(sensor_height) / (2 * ustrip(config.focal_length)))
-    
+
     return (horizontal=horizontal_fov, vertical=vertical_fov)
 end
 
@@ -174,7 +174,7 @@ of the pinhole camera model. The resulting ray has unit length.
 # Examples
 ```julia
 # Get ray direction for center pixel
-center_pixel = ProjectionPoint(2048.0u"pixel", 1500.0u"pixel")
+center_pixel = ProjectionPoint(2048.0*1pixel, 1500.0*1pixel)
 ray_dir = pixel_to_ray_direction(center_pixel)
 println("Ray direction: ", ray_dir)
 ```
@@ -185,23 +185,23 @@ function pixel_to_ray_direction(pixel_pt::ProjectionPoint, config=CAMERA_CONFIG)
     pixel_size = config.pixel_size
     optical_center_u = config.optical_center_u
     optical_center_v = config.optical_center_v
-    
+
     # Calculate focal length in pixels
     f_pixels = focal_length / pixel_size
-    
+
     # Convert to centered coordinates
     u_centered = pixel_pt.x - optical_center_u
     v_centered = pixel_pt.y - optical_center_v
-    
+
     # Convert to normalized camera coordinates
     # In camera frame: X=forward, Y=right, Z=down
     x_cam = 1.0u"m"  # Normalized forward direction
     y_cam = u_centered / f_pixels * 1.0u"m"  # Right direction
     z_cam = v_centered / f_pixels * 1.0u"m"  # Down direction
-    
+
     # Create and normalize ray direction
     ray = CameraPoint(x_cam, y_cam, z_cam)
     ray_magnitude = sqrt(ray.x^2 + ray.y^2 + ray.z^2)
-    
+
     return CameraPoint(ray.x / ray_magnitude, ray.y / ray_magnitude, ray.z / ray_magnitude)
 end
