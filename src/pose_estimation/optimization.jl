@@ -11,64 +11,97 @@ using LinearAlgebra
 using Rotations
 
 """
-    build_pose_optimization_function(
-        runway_corners::AbstractVector{<:WorldPoint},
-        observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
-        config::CameraConfig{S},
-        noise_model
-    ) -> Function
+    PoseOptimizationParams{T, S}
 
-Build an optimization function for pose estimation that can be passed to SimpleNonlinearSolve.
+Parameters for pose optimization that get passed through the parameter interface.
 
-# Arguments
+# Fields
 - `runway_corners`: 3D runway corner positions in world coordinates
-- `observed_corners`: 2D observed corner positions in image coordinates  
+- `observed_corners`: 2D observed corner positions in image coordinates
 - `config`: Camera configuration with coordinate system type
-- `noise_model`: Noise model from ProbabilisticParameterEstimators
-
-# Returns
-- Function `f(pose_params, p)` suitable for SimpleNonlinearSolve
-
-# Examples
-```julia
-runway_corners = [WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"), ...]
-observed_corners = [ProjectionPoint(100.0*1pixel, 200.0*1pixel), ...]
-noise_model = UncorrGaussianNoiseModel([Normal(0.0, 2.0) for _ in 1:8])
-
-opt_func = build_pose_optimization_function(runway_corners, observed_corners, 
-                                          CAMERA_CONFIG_OFFSET, noise_model)
-```
+- `chol_upper`: Upper triangular matrix from Cholesky decomposition of noise covariance
+- `known_orientation`: Optional known orientation for 3-DOF estimation
 """
-function build_pose_optimization_function(
+struct PoseOptimizationParams{T, S}
+    runway_corners::AbstractVector{<:WorldPoint}
+    observed_corners::AbstractVector{<:ProjectionPoint{T, S}}
+    config::CameraConfig{S}
+    chol_upper::AbstractMatrix{Float64}
+    known_orientation::Union{Nothing, RotZYX}
+end
+
+function PoseOptimizationParams(
     runway_corners::AbstractVector{<:WorldPoint},
     observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
     config::CameraConfig{S},
-    noise_model
+    noise_model;
+    known_orientation = nothing
 ) where {T, S}
-    
-    # Build covariance matrix from noise model
     Σ = covmatrix(noise_model)
     L, U = cholesky(Σ)
+    return PoseOptimizationParams{T, S}(runway_corners, observed_corners, config, U, known_orientation)
+end
+
+"""
+    pose_optimization_6dof(pose_params, p::PoseOptimizationParams)
+
+Optimization function for 6-DOF pose estimation (position + orientation).
+
+# Arguments
+- `pose_params`: Vector [x, y, z, roll, pitch, yaw] of pose parameters
+- `p`: PoseOptimizationParams containing problem data
+
+# Returns
+- Weighted reprojection error vector
+"""
+function pose_optimization_6dof(pose_params, p::PoseOptimizationParams)
+    # Unpack pose parameters: [x, y, z, roll, pitch, yaw]
+    cam_pos = WorldPoint(pose_params[1], pose_params[2], pose_params[3])
+    cam_rot = RotZYX(roll=pose_params[4], pitch=pose_params[5], yaw=pose_params[6])
     
-    function optimization_function(pose_params, p)
-        # Unpack pose parameters: [x, y, z, roll, pitch, yaw]
-        cam_pos = WorldPoint(pose_params[1], pose_params[2], pose_params[3])
-        cam_rot = RotZYX(roll=pose_params[4], pitch=pose_params[5], yaw=pose_params[6])
-        
-        # Project runway corners to image coordinates
-        projected_corners = [project(cam_pos, cam_rot, corner, config) for corner in runway_corners]
-        
-        # Compute reprojection errors
-        error_vectors = map(zip(projected_corners, observed_corners)) do (proj, obs)
-            ustrip.(proj - obs)
-        end
-        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_vectors)...)
-        
-        # Apply noise weighting via Cholesky decomposition
-        return U' \ errors
+    # Project runway corners to image coordinates
+    projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
+    
+    # Compute reprojection errors
+    error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
+        ustrip.(proj - obs)
     end
+    errors = SVector{2*length(p.runway_corners)}(Iterators.flatten(error_vectors)...)
     
-    return optimization_function
+    # Apply noise weighting via Cholesky decomposition
+    return p.chol_upper' \ errors
+end
+
+"""
+    pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
+
+Optimization function for 3-DOF position estimation with known orientation.
+
+# Arguments
+- `pos_params`: Vector [x, y, z] of position parameters
+- `p`: PoseOptimizationParams containing problem data (must have known_orientation set)
+
+# Returns
+- Weighted reprojection error vector
+"""
+function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
+    # Unpack position parameters: [x, y, z]
+    cam_pos = WorldPoint(pos_params[1], pos_params[2], pos_params[3])
+    
+    # Use known orientation
+    cam_rot = p.known_orientation
+    
+    # Project runway corners to image coordinates
+    projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
+    
+    # Compute reprojection errors
+    error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
+        ustrip.(proj - obs)
+    end
+    errors = SVector{2*length(p.runway_corners)}(Iterators.flatten(error_vectors)...)
+    
+    # Apply noise weighting via Cholesky decomposition
+    return p.chol_upper' \ errors
 end
 
 
@@ -125,11 +158,11 @@ function estimate_pose_6dof(
         initial_guess = [-1000.0, 0.0, 100.0, 0.0, 0.0, 0.0]  # [x,y,z,roll,pitch,yaw]
     end
     
-    # Build optimization function
-    opt_func = build_pose_optimization_function(runway_corners, observed_corners, config, noise_model)
+    # Create optimization parameters
+    opt_params = PoseOptimizationParams(runway_corners, observed_corners, config, noise_model)
     
     # Create and solve nonlinear least squares problem
-    prob = NonlinearLeastSquaresProblem{false}(opt_func, initial_guess, nothing)
+    prob = NonlinearLeastSquaresProblem{false}(pose_optimization_6dof, initial_guess, opt_params)
     
     sol = solve(prob, SimpleNewtonRaphson(); 
                 abstol = ustrip(optimization_config.convergence_tolerance),
@@ -195,32 +228,12 @@ function estimate_pose_3dof(
         initial_guess = [-1000.0, 0.0, 100.0]  # [x,y,z]
     end
     
-    # Build covariance matrix from noise model
-    Σ = covmatrix(noise_model)
-    L, U = cholesky(Σ)
-    
-    function optimization_function(pos_params, p)
-        # Unpack position parameters: [x, y, z]
-        cam_pos = WorldPoint(pos_params[1], pos_params[2], pos_params[3])
-        
-        # Use known orientation
-        cam_rot = known_orientation
-        
-        # Project runway corners to image coordinates
-        projected_corners = [project(cam_pos, cam_rot, corner, config) for corner in runway_corners]
-        
-        # Compute reprojection errors
-        error_vectors = map(zip(projected_corners, observed_corners)) do (proj, obs)
-            ustrip.(proj - obs)
-        end
-        errors = SVector{2*length(runway_corners)}(Iterators.flatten(error_vectors)...)
-        
-        # Apply noise weighting via Cholesky decomposition
-        return U' \ errors
-    end
+    # Create optimization parameters with known orientation
+    opt_params = PoseOptimizationParams(runway_corners, observed_corners, config, noise_model; 
+                                       known_orientation = known_orientation)
     
     # Create and solve nonlinear least squares problem
-    prob = NonlinearLeastSquaresProblem{false}(optimization_function, initial_guess, nothing)
+    prob = NonlinearLeastSquaresProblem{false}(pose_optimization_3dof, initial_guess, opt_params)
     
     sol = solve(prob, SimpleNewtonRaphson(); 
                 abstol = ustrip(optimization_config.convergence_tolerance),
