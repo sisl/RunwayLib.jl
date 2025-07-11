@@ -2,6 +2,7 @@ module RunwayLib
 
 using LinearAlgebra
 using StaticArrays
+using StaticArrays: SVector
 using Rotations
 using Unitful
 using Distributions
