@@ -86,8 +86,10 @@ centered_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_CENTERE
 offset_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_OFFSET)
 ```
 """
-function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
-    config::CameraConfig{S}) where S
+function project(
+        cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
+        config::CameraConfig{S}
+    ) where {S}
     # Transform to camera coordinates
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
 
@@ -101,7 +103,7 @@ function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
     pixel_size = config.pixel_size
 
     # Calculate focal length in pixels
-    f_pixels = uconvert(1pixel, focal_length / pixel_size)
+    f_pixels = uconvert(pixel, focal_length / pixel_size)
 
     # Apply pinhole projection model
     # In camera coordinates: X=forward, Y=right, Z=down
@@ -109,28 +111,28 @@ function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
         # For centered coordinates: left (negative Y), up (negative Z)
         u_centered = -f_pixels * (cam_pt.y / cam_pt.x)  # Left positive
         v_centered = -f_pixels * (cam_pt.z / cam_pt.x)  # Up positive
-        
+
         # Check for valid pixel coordinates
         if !isfinite(ustrip(u_centered)) || !isfinite(ustrip(v_centered))
             throw(DomainError("Invalid projection coordinates"))
         end
-        
+
         return ProjectionPoint{typeof(u_centered), :centered}(u_centered, v_centered)
-        
+
     elseif S == :offset
         # For offset coordinates: right (positive Y), down (positive Z)
         u_centered = f_pixels * (cam_pt.y / cam_pt.x)   # Right positive
         v_centered = f_pixels * (cam_pt.z / cam_pt.x)   # Down positive
-        
+
         # Add principal point offset
         u = u_centered + config.optical_center_u
         v = v_centered + config.optical_center_v
-        
+
         # Check for valid pixel coordinates
         if !isfinite(ustrip(u)) || !isfinite(ustrip(v))
             throw(DomainError("Invalid projection coordinates"))
         end
-        
+
         return ProjectionPoint{typeof(u), :offset}(u, v)
     else
         error("Unknown coordinate system: $S")
@@ -138,8 +140,10 @@ function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
 end
 
 # Backward compatibility method
-function project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint;
-    config=CAMERA_CONFIG)
+function project(
+        cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint;
+        config = CAMERA_CONFIG
+    )
     return project(cam_pos, cam_rot, world_pt, config)
 end
 
@@ -194,7 +198,7 @@ function get_field_of_view(config::CameraConfig)
     horizontal_fov = 2 * atan(ustrip(sensor_width) / (2 * ustrip(config.focal_length)))
     vertical_fov = 2 * atan(ustrip(sensor_height) / (2 * ustrip(config.focal_length)))
 
-    return (horizontal=horizontal_fov, vertical=vertical_fov)
+    return (horizontal = horizontal_fov, vertical = vertical_fov)
 end
 
 # Backward compatibility
@@ -236,21 +240,21 @@ function pixel_to_ray_direction(pixel_pt::ProjectionPoint{T, S}, config::CameraC
         # For centered coordinates, pixel coordinates are already centered
         u_centered = pixel_pt.x
         v_centered = pixel_pt.y
-        
+
         # Convert to camera coordinates (flip signs for centered system)
         # In camera frame: X=forward, Y=right, Z=down
         x_cam = 1.0u"m"  # Normalized forward direction
         y_cam = -u_centered / f_pixels * 1.0u"m"  # Right direction (flip left to right)
         z_cam = -v_centered / f_pixels * 1.0u"m"  # Down direction (flip up to down)
-        
+
     elseif S == :offset
         # For offset coordinates, subtract principal point
         optical_center_u = config.optical_center_u
         optical_center_v = config.optical_center_v
-        
+
         u_centered = pixel_pt.x - optical_center_u
         v_centered = pixel_pt.y - optical_center_v
-        
+
         # Convert to camera coordinates
         # In camera frame: X=forward, Y=right, Z=down
         x_cam = 1.0u"m"  # Normalized forward direction
@@ -268,11 +272,13 @@ function pixel_to_ray_direction(pixel_pt::ProjectionPoint{T, S}, config::CameraC
 end
 
 # Backward compatibility method
-function pixel_to_ray_direction(pixel_pt::ProjectionPoint, config=CAMERA_CONFIG)
+function pixel_to_ray_direction(pixel_pt::ProjectionPoint, config = CAMERA_CONFIG)
     # Assume old ProjectionPoint is offset type
     pixel_pt_typed = ProjectionPoint{typeof(pixel_pt.x), :offset}(pixel_pt.x, pixel_pt.y)
-    config_typed = CameraConfig{:offset}(config.focal_length, config.pixel_size, 
-                                        config.image_width, config.image_height,
-                                        config.optical_center_u, config.optical_center_v)
+    config_typed = CameraConfig{:offset}(
+        config.focal_length, config.pixel_size,
+        config.image_width, config.image_height,
+        config.optical_center_u, config.optical_center_v
+    )
     return pixel_to_ray_direction(pixel_pt_typed, config_typed)
 end

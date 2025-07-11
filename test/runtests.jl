@@ -1,5 +1,6 @@
 using Test
-using RunwayPoseEstimation
+using RunwayLib
+using StaticArrays
 
 @testset "RunwayPoseEstimation.jl" begin
     include("unit/test_coordinate_systems.jl")
@@ -9,6 +10,6 @@ using RunwayPoseEstimation
     include("unit/test_uncertainty_quantification.jl")
     include("unit/test_integrity_monitoring.jl")
     include("unit/test_visualization.jl")
-    
+
     include("integration/test_end_to_end.jl")
 end
