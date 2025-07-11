@@ -33,6 +33,9 @@ export get_runway_corners, validate_runway_spec
 # Export configuration
 export CAMERA_CONFIG, DEFAULT_OPTIMIZATION_CONFIG
 
+# Export custom units
+export pixel
+
 # Include submodules
 include("coordinate_systems/types.jl")
 include("coordinate_systems/transformations.jl")
