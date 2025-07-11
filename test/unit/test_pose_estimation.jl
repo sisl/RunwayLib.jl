@@ -1,5 +1,5 @@
 using Test
-using RunwayPoseEstimation
+using RunwayLib
 using Rotations
 using LinearAlgebra
 using Unitful

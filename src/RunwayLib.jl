@@ -6,6 +6,12 @@ using Rotations
 using Unitful
 using Distributions
 
+# Define custom pixel unit
+@unit pixel "pixel" Pixel 1 false
+
+# Register the pixel unit with Unitful
+Unitful.register(RunwayLib)
+
 # Export coordinate system types
 export WorldPoint, CameraPoint, ProjectionPoint
 
