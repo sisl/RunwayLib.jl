@@ -124,8 +124,8 @@ Estimate 6-DOF aircraft pose (position + orientation) from runway corner observa
 - `observed_corners`: 2D observed corner positions in image coordinates
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess_pos`: Initial position guess [x,y,z] with units (default: reasonable guess)
-- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] in radians (default: reasonable guess)
+- `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
+- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] as dimensionless reals (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -137,8 +137,8 @@ runway_corners = get_runway_corners(runway_spec)
 observed_corners = [ProjectionPoint(100.0*1pixel, 200.0*1pixel), ...]
 
 pose_est = estimate_pose_6dof(runway_corners, observed_corners, CAMERA_CONFIG_OFFSET;
-                             initial_guess_pos = [-800.0u"m", 0.0u"m", 120.0u"m"],
-                             initial_guess_rot = [0.0, 0.05, 0.0])
+                             initial_guess_pos = SA[-800.0u"m", 0.0u"m", 120.0u"m"],
+                             initial_guess_rot = SA[0.0, 0.05, 0.0])
 println("Position: ", pose_est.position)
 println("Converged: ", pose_est.converged)
 ```
@@ -148,8 +148,8 @@ function estimate_pose_6dof(
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess_pos = nothing,
-        initial_guess_rot = nothing,
+        initial_guess_pos::Union{Nothing, AbstractVector{<:Unitful.Length}} = nothing,
+        initial_guess_rot::Union{Nothing, AbstractVector{<:Real}} = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
@@ -224,7 +224,7 @@ Estimate 3-DOF aircraft position with known orientation from runway corner obser
 - `known_orientation`: Known aircraft orientation
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess_pos`: Initial position guess [x,y,z] with units (default: reasonable guess)
+- `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -236,7 +236,7 @@ function estimate_pose_3dof(
         known_orientation::RotZYX,
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess_pos = nothing,
+        initial_guess_pos::Union{Nothing, AbstractVector{<:Unitful.Length}} = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
