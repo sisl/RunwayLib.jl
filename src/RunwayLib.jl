@@ -5,7 +5,7 @@ using StaticArrays
 using StaticArrays: SVector
 using Rotations
 using Unitful
-using Unitful: DimensionlessQuantity
+using Unitful: Length, DimensionlessQuantity
 using Distributions
 using TypedTables
 using SimpleNonlinearSolve
@@ -60,7 +60,7 @@ function compute_raim_statistic(pose_estimate, runway_spec, corners, noise_model
     error("compute_raim_statistic not yet implemented")
 end
 
-function check_integrity(raim_statistic; significance_level=0.05)
+function check_integrity(raim_statistic; significance_level = 0.05)
     error("check_integrity not yet implemented")
 end
 

@@ -7,6 +7,7 @@ noise models.
 """
 
 using SimpleNonlinearSolve
+import NonlinearSolveFirstOrder: LevenbergMarquardtTrustRegion, LevenbergMarquardt
 import SciMLBase: successful_retcode
 using LinearAlgebra
 using Rotations
@@ -57,20 +58,21 @@ Optimization function for 6-DOF pose estimation (position + orientation).
 """
 function pose_optimization_6dof(pose_params, p::PoseOptimizationParams)
     # Unpack pose parameters: [x, y, z, roll, pitch, yaw]
-    cam_pos = WorldPoint(pose_params[1], pose_params[2], pose_params[3])
-    cam_rot = RotZYX(roll = pose_params[4], pitch = pose_params[5], yaw = pose_params[6])
+    cam_pos = WorldPoint(pose_params[1] * u"m", pose_params[2] * u"m", pose_params[3] * u"m")
+    cam_rot = RotZYX(roll = pose_params[4] * u"rad", pitch = pose_params[5] * u"rad", yaw = pose_params[6] * u"rad")
 
     # Project runway corners to image coordinates
     projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
 
     # Compute reprojection errors
     error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
-        ustrip.(proj - obs)
+        proj - obs
     end
-    errors = SVector{2 * length(p.runway_corners)}(Iterators.flatten(error_vectors)...)
+    errors = reduce(vcat, SVector.(error_vectors))
 
+    U = p.chol_upper * pixel
     # Apply noise weighting via Cholesky decomposition
-    return p.chol_upper' \ errors
+    return ustrip.(NoUnits, U' \ errors)
 end
 
 """
@@ -97,12 +99,13 @@ function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
 
     # Compute reprojection errors
     error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
-        ustrip.(proj - obs)
+        proj - obs
     end
-    errors = SVector{2 * length(p.runway_corners)}(Iterators.flatten(error_vectors)...)
+    errors = reduce(vcat, SVector.(error_vectors))
 
+    U = p.chol_upper * pixel
     # Apply noise weighting via Cholesky decomposition
-    return ustrip.((p.chol_upper' * pixel) \ errors)
+    return ustrip.(NoUnits, U' \ errors)
 end
 
 
@@ -147,33 +150,18 @@ function estimate_pose_6dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
-        noise_model = nothing,
-        initial_guess_pos::Union{Nothing, AbstractVector{<:Unitful.Length}} = nothing,
-        initial_guess_rot::Union{Nothing, AbstractVector{<:DimensionlessQuantity}} = nothing,
+        noise_model = UncorrGaussianNoiseModel(reduce(vcat, [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in observed_corners])),
+        initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
+        initial_guess_rot::AbstractVector{<:DimensionlessQuantity} = SA[0.0, 0.0, 0.0] * u"rad",
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
-    # Default noise model: 2-pixel standard deviation for each corner (x,y)
-    if noise_model === nothing
-        noise_dists = [Normal(0.0, 2.0) for _ in 1:(2 * length(observed_corners))]
-        noise_model = UncorrGaussianNoiseModel(noise_dists)
-    end
-
     # Default initial guesses: reasonable aircraft approach position and orientation
-    if initial_guess_pos === nothing
-        initial_guess_pos = [-1000.0, 0.0, 100.0]  # [x,y,z] in meters
-    else
-        initial_guess_pos = ustrip.(u"m", initial_guess_pos)  # Convert to meters
-    end
-
-    if initial_guess_rot === nothing
-        initial_guess_rot = [0.0, 0.0, 0.0]  # [roll,pitch,yaw] in radians
-    else
-        initial_guess_rot = ustrip.(initial_guess_rot)  # Extract dimensionless values
-    end
+    initial_guess_pos = ustrip.(u"m", initial_guess_pos)
+    initial_guess_rot = ustrip.(u"rad", initial_guess_rot)
 
     # Combine into single initial guess vector
-    initial_guess = [initial_guess_pos..., initial_guess_rot...]
+    initial_guess = [initial_guess_pos; initial_guess_rot]
 
     # Create optimization parameters
     opt_params = PoseOptimizationParams(runway_corners, observed_corners, config, noise_model)
@@ -185,11 +173,14 @@ function estimate_pose_6dof(
     )
 
     sol = solve(
-        prob, SimpleNewtonRaphson();
+        prob,
+        # SimpleTrustRegion();
+        # LevenbergMarquardtTrustRegion(1.0);
+        LevenbergMarquardt();
         abstol = ustrip(optimization_config.convergence_tolerance),
         reltol = optimization_config.step_tolerance,
         maxiters = optimization_config.max_iterations,
-        termination_condition
+        termination_condition,
     )
 
     # Extract results
@@ -197,6 +188,9 @@ function estimate_pose_6dof(
     orientation = RotZYX(roll = sol.u[4], pitch = sol.u[5], yaw = sol.u[6])
     residual_norm = norm(sol.resid) * 1pixel
     converged = successful_retcode(sol)
+    if !converged
+        println(sol.retcode)
+    end
 
     # TODO: Compute uncertainty from Jacobian at solution
     # For now, use identity covariance as placeholder
@@ -235,23 +229,12 @@ function estimate_pose_3dof(
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         known_orientation::RotZYX,
         config::CameraConfig{S};
-        noise_model = nothing,
-        initial_guess_pos::Union{Nothing, AbstractVector{<:Unitful.Length}} = nothing,
+        noise_model = UncorrGaussianNoiseModel(reduce(vcat, [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in observed_corners])),
+        initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
-    # Default noise model: 2-pixel standard deviation for each corner (x,y)
-    if noise_model === nothing
-        noise_dists = [Normal(0.0, 2.0) for _ in 1:(2 * length(observed_corners))]
-        noise_model = UncorrGaussianNoiseModel(noise_dists)
-    end
-
-    # Default initial guess: reasonable aircraft approach position
-    if initial_guess_pos === nothing
-        initial_guess_pos = [-1000.0, 0.0, 100.0]  # [x,y,z] in meters
-    else
-        initial_guess_pos = ustrip.(u"m", initial_guess_pos)  # Convert to meters
-    end
+    initial_guess_pos = ustrip.(u"m", initial_guess_pos)
 
     # Create optimization parameters with known orientation
     opt_params = PoseOptimizationParams(
@@ -268,11 +251,14 @@ function estimate_pose_3dof(
     )
 
     sol = solve(
-        prob, SimpleNewtonRaphson();
+        prob,
+        # SimpleTrustRegion();
+        # LevenbergMarquardtTrustRegion(1.0);
+        LevenbergMarquardt();
         abstol = ustrip(optimization_config.convergence_tolerance),
         reltol = optimization_config.step_tolerance,
         maxiters = optimization_config.max_iterations,
-        termination_condition
+        termination_condition,
     )
 
     # Extract results

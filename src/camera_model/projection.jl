@@ -94,7 +94,7 @@ function project(
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
 
     # Check if point is in front of camera
-    if ustrip(cam_pt.x) <= 0
+    if ustrip(u"m", cam_pt.x) <= 0
         throw(DivideError())
     end
 

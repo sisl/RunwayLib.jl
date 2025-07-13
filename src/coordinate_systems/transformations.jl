@@ -49,15 +49,12 @@ cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
 function world_pt_to_cam_pt(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint)
     # Translate to camera-relative coordinates
     relative_pt = world_pt - cam_pos
-    
-    # Convert to SVector for rotation
-    relative_vec = SVector(relative_pt.x, relative_pt.y, relative_pt.z)
-    
+
     # Apply inverse rotation (transpose of rotation matrix)
     # This transforms from world frame to camera frame
-    cam_vec = cam_rot' * relative_vec
-    
-    return CameraPoint(cam_vec[1], cam_vec[2], cam_vec[3])
+    cam_vec = cam_rot' * relative_pt
+
+    return CameraPoint(cam_vec)
 end
 
 """
@@ -91,12 +88,12 @@ world_pt = cam_pt_to_world_pt(cam_pos, cam_rot, cam_pt)
 function cam_pt_to_world_pt(cam_pos::WorldPoint, cam_rot::RotZYX, cam_pt::CameraPoint)
     # Convert to SVector for rotation
     cam_vec = SVector(cam_pt.x, cam_pt.y, cam_pt.z)
-    
+
     # Apply rotation to transform from camera frame to world frame
     world_vec = cam_rot * cam_vec
-    
+
     # Create world point and translate by camera position
     relative_pt = WorldPoint(world_vec[1], world_vec[2], world_vec[3])
-    
+
     return cam_pos + relative_pt
 end
