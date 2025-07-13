@@ -12,12 +12,12 @@ using Unitful
 """
     PoseEstimate
 
-Complete pose estimate with position, orientation, uncertainty, and convergence information.
+Complete pose estimate with position, attitude, uncertainty, and convergence information.
 
 # Fields
 - `position::WorldPoint`: Estimated aircraft position in world coordinates
-- `orientation::RotZYX`: Estimated aircraft orientation (yaw, pitch, roll)
-- `uncertainty::MvNormal`: Joint position-orientation uncertainty distribution
+- `attitude::RotZYX`: Estimated aircraft attitude (yaw, pitch, roll)
+- `uncertainty::MvNormal`: Joint position-attitude uncertainty distribution
 - `residual_norm`: Final residual norm from optimization (with units)
 - `converged::Bool`: Whether optimization converged successfully
 
@@ -25,31 +25,31 @@ Complete pose estimate with position, orientation, uncertainty, and convergence 
 ```julia
 # Create pose estimate
 position = WorldPoint(500.0u"m", 10.0u"m", 100.0u"m")
-orientation = RotZYX(0.1, 0.05, 0.02)  # Small attitude angles
+attitude = RotZYX(0.1, 0.05, 0.02)  # Small attitude angles
 uncertainty = MvNormal(zeros(6), I(6))  # 6-DOF uncertainty
 residual_norm = 0.5*1pixel
 converged = true
 
-pose_est = PoseEstimate(position, orientation, uncertainty, residual_norm, converged)
+pose_est = PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
 
 # Access components
 println("Position: ", pose_est.position)
-println("Orientation: ", pose_est.orientation)
+println("Attitude: ", pose_est.attitude)
 println("Converged: ", pose_est.converged)
 ```
 """
-struct PoseEstimate{P, O, U, R}
+struct PoseEstimate{P, A, U, R}
     position::P
-    orientation::O
+    attitude::A
     uncertainty::U
     residual_norm::R
     converged::Bool
 
     function PoseEstimate(
-            position::P, orientation::O, uncertainty::U,
+            position::P, attitude::A, uncertainty::U,
             residual_norm::R, converged::Bool
-        ) where {P, O, U, R}
-        return new{P, O, U, R}(position, orientation, uncertainty, residual_norm, converged)
+        ) where {P, A, U, R}
+        return new{P, A, U, R}(position, attitude, uncertainty, residual_norm, converged)
     end
 end
 
