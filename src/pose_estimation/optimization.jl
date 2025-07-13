@@ -125,7 +125,7 @@ Estimate 6-DOF aircraft pose (position + orientation) from runway corner observa
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
 - `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
-- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] as dimensionless reals (default: reasonable guess)
+- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] as dimensionless quantities (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -138,7 +138,7 @@ observed_corners = [ProjectionPoint(100.0*1pixel, 200.0*1pixel), ...]
 
 pose_est = estimate_pose_6dof(runway_corners, observed_corners, CAMERA_CONFIG_OFFSET;
                              initial_guess_pos = SA[-800.0u"m", 0.0u"m", 120.0u"m"],
-                             initial_guess_rot = SA[0.0, 0.05, 0.0])
+                             initial_guess_rot = SA[0.0u"rad", 0.05u"rad", 0.0u"rad"])
 println("Position: ", pose_est.position)
 println("Converged: ", pose_est.converged)
 ```
@@ -149,7 +149,7 @@ function estimate_pose_6dof(
         config::CameraConfig{S};
         noise_model = nothing,
         initial_guess_pos::Union{Nothing, AbstractVector{<:Unitful.Length}} = nothing,
-        initial_guess_rot::Union{Nothing, AbstractVector{<:Real}} = nothing,
+        initial_guess_rot::Union{Nothing, AbstractVector{<:DimensionlessQuantity}} = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
@@ -169,7 +169,7 @@ function estimate_pose_6dof(
     if initial_guess_rot === nothing
         initial_guess_rot = [0.0, 0.0, 0.0]  # [roll,pitch,yaw] in radians
     else
-        initial_guess_rot = ustrip.(u"rad", initial_guess_rot)
+        initial_guess_rot = ustrip.(initial_guess_rot)  # Extract dimensionless values
     end
 
     # Combine into single initial guess vector

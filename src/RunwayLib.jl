@@ -5,6 +5,7 @@ using StaticArrays
 using StaticArrays: SVector
 using Rotations
 using Unitful
+using Unitful: DimensionlessQuantity
 using Distributions
 using TypedTables
 using SimpleNonlinearSolve

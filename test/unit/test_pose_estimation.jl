@@ -187,7 +187,7 @@ using StaticArrays
                 CAMERA_CONFIG_OFFSET;
                 noise_model = noise_model,
                 initial_guess_pos = initial_guess[1:3] * u"m",
-                initial_guess_rot = initial_guess[4:6]
+                initial_guess_rot = initial_guess[4:6] * u"rad"
             )
 
             # Verify convergence
@@ -326,7 +326,7 @@ using StaticArrays
             runway_corners, tiny_noise_observations, CAMERA_CONFIG_CENTERED;
             noise_model = noise_model,
             initial_guess_pos = [true_pos.x, true_pos.y, true_pos.z],
-            initial_guess_rot = [true_rot.theta1, true_rot.theta2, true_rot.theta3]
+            initial_guess_rot = [true_rot.theta1, true_rot.theta2, true_rot.theta3] * u"rad"
         )
 
         @test pose_est.converged
