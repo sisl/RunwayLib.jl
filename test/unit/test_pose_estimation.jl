@@ -164,7 +164,7 @@ using StaticArrays
             opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model)
             true_params = [true_x, true_y, true_z, true_roll, true_pitch, true_yaw]
             loss_at_true = pose_optimization_6dof(true_params, opt_params)
-            @test norm(loss_at_true) < 1e-10 "Loss at true parameters should be near zero, got $(norm(loss_at_true))"
+            @test norm(loss_at_true) < 1.0e-10
 
             # Add noise to observations (±2 pixels standard deviation)
             noisy_observations = [
@@ -259,7 +259,7 @@ using StaticArrays
             opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model; known_attitude = known_rot)
             true_params = [true_x, true_y, true_z]
             loss_at_true = pose_optimization_3dof(true_params, opt_params)
-            @test norm(loss_at_true) < 1e-10 "Loss at true parameters should be near zero, got $(norm(loss_at_true))"
+            @test norm(loss_at_true) < 1.0e-10
 
             # Add noise to observations
             noisy_observations = [
