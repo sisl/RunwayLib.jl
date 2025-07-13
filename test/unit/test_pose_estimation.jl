@@ -184,34 +184,34 @@ using StaticArrays
             # Run pose estimation
             pose_est = estimate_pose_6dof(
                 runway_corners, noisy_observations,
-                CAMERA_CONFIG_CENTERED;
+                CAMERA_CONFIG_OFFSET;
                 noise_model = noise_model,
                 initial_guess = initial_guess
             )
 
             # Verify convergence
-            @test pose_est.converged "Pose estimation failed to converge for test $i"
+            @test pose_est.converged
 
             # Check position accuracy (should be within ~10m given 2-pixel noise)
             pos_error_x = abs(ustrip(pose_est.position.x - true_pos.x))
             pos_error_y = abs(ustrip(pose_est.position.y - true_pos.y))
             pos_error_z = abs(ustrip(pose_est.position.z - true_pos.z))
 
-            @test pos_error_x < 20.0 "X position error too large: $(pos_error_x)m for test $i"
-            @test pos_error_y < 20.0 "Y position error too large: $(pos_error_y)m for test $i"
-            @test pos_error_z < 20.0 "Z position error too large: $(pos_error_z)m for test $i"
+            @test pos_error_x < 20.0
+            @test pos_error_y < 20.0
+            @test pos_error_z < 20.0
 
             # Check orientation accuracy (should be within ~0.05 radians given noise)
             rot_error_roll = abs(pose_est.orientation.theta1 - true_rot.theta1)
             rot_error_pitch = abs(pose_est.orientation.theta2 - true_rot.theta2)
             rot_error_yaw = abs(pose_est.orientation.theta3 - true_rot.theta3)
 
-            @test rot_error_roll < 0.1 "Roll error too large: $(rot_error_roll) rad for test $i"
-            @test rot_error_pitch < 0.1 "Pitch error too large: $(rot_error_pitch) rad for test $i"
-            @test rot_error_yaw < 0.1 "Yaw error too large: $(rot_error_yaw) rad for test $i"
+            @test rot_error_roll < 0.1
+            @test rot_error_pitch < 0.1
+            @test rot_error_yaw < 0.1
 
             # Check residual is reasonable
-            @test ustrip(pose_est.residual_norm) < 10.0 "Residual too large for test $i"
+            @test ustrip(pose_est.residual_norm) < 10.0
         end
     end
 
@@ -273,16 +273,16 @@ using StaticArrays
             )
 
             # Verify convergence
-            @test pose_est.converged "3-DOF pose estimation failed to converge for test $i"
+            @test pose_est.converged
 
             # Check position accuracy
             pos_error_x = abs(ustrip(pose_est.position.x - true_pos.x))
             pos_error_y = abs(ustrip(pose_est.position.y - true_pos.y))
             pos_error_z = abs(ustrip(pose_est.position.z - true_pos.z))
 
-            @test pos_error_x < 15.0 "X position error too large: $(pos_error_x)m for 3-DOF test $i"
-            @test pos_error_y < 15.0 "Y position error too large: $(pos_error_y)m for 3-DOF test $i"
-            @test pos_error_z < 15.0 "Z position error too large: $(pos_error_z)m for 3-DOF test $i"
+            @test pos_error_x < 15.0
+            @test pos_error_y < 15.0
+            @test pos_error_z < 15.0
 
             # Check that orientation matches the known orientation
             @test pose_est.orientation.theta1 ≈ known_rot.theta1 atol = 1.0e-10
@@ -290,7 +290,7 @@ using StaticArrays
             @test pose_est.orientation.theta3 ≈ known_rot.theta3 atol = 1.0e-10
 
             # Check residual is reasonable
-            @test ustrip(pose_est.residual_norm) < 8.0 "Residual too large for 3-DOF test $i"
+            @test ustrip(pose_est.residual_norm) < 8.0
         end
     end
 
