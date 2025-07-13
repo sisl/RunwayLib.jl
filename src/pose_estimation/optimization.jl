@@ -112,7 +112,8 @@ end
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess = nothing,
+        initial_guess_pos = nothing,
+        initial_guess_rot = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) -> PoseEstimate
 
@@ -123,7 +124,8 @@ Estimate 6-DOF aircraft pose (position + orientation) from runway corner observa
 - `observed_corners`: 2D observed corner positions in image coordinates
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess`: Initial pose guess [x,y,z,roll,pitch,yaw] (default: reasonable guess)
+- `initial_guess_pos`: Initial position guess [x,y,z] with units (default: reasonable guess)
+- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] in radians (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -134,7 +136,9 @@ Estimate 6-DOF aircraft pose (position + orientation) from runway corner observa
 runway_corners = get_runway_corners(runway_spec)
 observed_corners = [ProjectionPoint(100.0*1pixel, 200.0*1pixel), ...]
 
-pose_est = estimate_pose_6dof(runway_corners, observed_corners, CAMERA_CONFIG_OFFSET)
+pose_est = estimate_pose_6dof(runway_corners, observed_corners, CAMERA_CONFIG_OFFSET;
+                             initial_guess_pos = [-800.0u"m", 0.0u"m", 120.0u"m"],
+                             initial_guess_rot = [0.0, 0.05, 0.0])
 println("Position: ", pose_est.position)
 println("Converged: ", pose_est.converged)
 ```
@@ -144,7 +148,8 @@ function estimate_pose_6dof(
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess = nothing,
+        initial_guess_pos = nothing,
+        initial_guess_rot = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
@@ -154,10 +159,19 @@ function estimate_pose_6dof(
         noise_model = UncorrGaussianNoiseModel(noise_dists)
     end
 
-    # Default initial guess: reasonable aircraft approach position
-    if initial_guess === nothing
-        initial_guess = [-1000.0, 0.0, 100.0, 0.0, 0.0, 0.0]  # [x,y,z,roll,pitch,yaw]
+    # Default initial guesses: reasonable aircraft approach position and orientation
+    if initial_guess_pos === nothing
+        initial_guess_pos = [-1000.0, 0.0, 100.0]  # [x,y,z] in meters
+    else
+        initial_guess_pos = ustrip.(u"m", initial_guess_pos)  # Convert to meters
     end
+    
+    if initial_guess_rot === nothing
+        initial_guess_rot = [0.0, 0.0, 0.0]  # [roll,pitch,yaw] in radians
+    end
+
+    # Combine into single initial guess vector
+    initial_guess = [initial_guess_pos..., initial_guess_rot...]
 
     # Create optimization parameters
     opt_params = PoseOptimizationParams(runway_corners, observed_corners, config, noise_model)
@@ -196,7 +210,7 @@ end
         known_orientation::RotZYX,
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess = nothing,
+        initial_guess_pos = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) -> PoseEstimate
 
@@ -208,7 +222,7 @@ Estimate 3-DOF aircraft position with known orientation from runway corner obser
 - `known_orientation`: Known aircraft orientation
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess`: Initial position guess [x,y,z] (default: reasonable guess)
+- `initial_guess_pos`: Initial position guess [x,y,z] with units (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -220,7 +234,7 @@ function estimate_pose_3dof(
         known_orientation::RotZYX,
         config::CameraConfig{S};
         noise_model = nothing,
-        initial_guess = nothing,
+        initial_guess_pos = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
@@ -231,10 +245,10 @@ function estimate_pose_3dof(
     end
 
     # Default initial guess: reasonable aircraft approach position
-    if initial_guess === nothing
-        initial_guess = [-1000.0, 0.0, 100.0]  # [x,y,z]
+    if initial_guess_pos === nothing
+        initial_guess_pos = [-1000.0, 0.0, 100.0]  # [x,y,z] in meters
     else
-        initial_guess = ustrip.(u"m", initial_guess)
+        initial_guess_pos = ustrip.(u"m", initial_guess_pos)  # Convert to meters
     end
 
     # Create optimization parameters with known orientation
@@ -245,7 +259,7 @@ function estimate_pose_3dof(
     )
 
     # Create and solve nonlinear least squares problem
-    prob = NonlinearLeastSquaresProblem{false}(pose_optimization_3dof, initial_guess, opt_params)
+    prob = NonlinearLeastSquaresProblem{false}(pose_optimization_3dof, initial_guess_pos, opt_params)
 
     termination_condition = AbsNormSafeBestTerminationMode(
         Base.Fix2(norm, 2); max_stalled_steps = 32
