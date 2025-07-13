@@ -159,6 +159,13 @@ using StaticArrays
                     for corner in runway_corners
             ]
 
+            # Test that optimization function returns near-zero loss for true parameters
+            noise_model = UncorrGaussianNoiseModel([Normal(0.0, 2.0) for _ in 1:8])
+            opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model)
+            true_params = [true_x, true_y, true_z, true_roll, true_pitch, true_yaw]
+            loss_at_true = pose_optimization_6dof(true_params, opt_params)
+            @test norm(loss_at_true) < 1e-10 "Loss at true parameters should be near zero, got $(norm(loss_at_true))"
+
             # Add noise to observations (±2 pixels standard deviation)
             noisy_observations = [
                 ProjectionPoint(
@@ -246,6 +253,13 @@ using StaticArrays
                 project(true_pos, known_rot, corner, CAMERA_CONFIG_CENTERED)
                     for corner in runway_corners
             ]
+
+            # Test that optimization function returns near-zero loss for true parameters
+            noise_model = UncorrGaussianNoiseModel([Normal(0.0, 1.5) for _ in 1:8])
+            opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model; known_attitude = known_rot)
+            true_params = [true_x, true_y, true_z]
+            loss_at_true = pose_optimization_3dof(true_params, opt_params)
+            @test norm(loss_at_true) < 1e-10 "Loss at true parameters should be near zero, got $(norm(loss_at_true))"
 
             # Add noise to observations
             noisy_observations = [
