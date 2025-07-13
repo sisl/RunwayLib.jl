@@ -165,9 +165,11 @@ function estimate_pose_6dof(
     else
         initial_guess_pos = ustrip.(u"m", initial_guess_pos)  # Convert to meters
     end
-    
+
     if initial_guess_rot === nothing
         initial_guess_rot = [0.0, 0.0, 0.0]  # [roll,pitch,yaw] in radians
+    else
+        initial_guess_rot = ustrip.(u"rad", initial_guess_rot)
     end
 
     # Combine into single initial guess vector
