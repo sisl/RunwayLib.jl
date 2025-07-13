@@ -22,14 +22,14 @@ Parameters for pose optimization that get passed through the parameter interface
 - `observed_corners`: 2D observed corner positions in image coordinates
 - `config`: Camera configuration with coordinate system type
 - `chol_upper`: Upper triangular matrix from Cholesky decomposition of noise covariance
-- `known_orientation`: Optional known orientation for 3-DOF estimation
+- `known_attitude`: Optional known attitude for 3-DOF estimation
 """
 struct PoseOptimizationParams{T, T′, S}
     runway_corners::AbstractVector{<:WorldPoint{T}}
     observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
-    known_orientation::Union{Nothing, RotZYX}
+    known_attitude::Union{Nothing, RotZYX}
 end
 
 function PoseOptimizationParams(
@@ -37,17 +37,17 @@ function PoseOptimizationParams(
         observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
         config::CameraConfig{S},
         noise_model;
-        known_orientation = nothing
+        known_attitude = nothing
     ) where {T, T′, S}
     Σ = covmatrix(noise_model)
     L, U = cholesky(Σ)
-    return PoseOptimizationParams{T, T′, S}(runway_corners, observed_corners, config, U, known_orientation)
+    return PoseOptimizationParams{T, T′, S}(runway_corners, observed_corners, config, U, known_attitude)
 end
 
 """
     pose_optimization_6dof(pose_params, p::PoseOptimizationParams)
 
-Optimization function for 6-DOF pose estimation (position + orientation).
+Optimization function for 6-DOF pose estimation (position + attitude).
 
 # Arguments
 - `pose_params`: Vector [x, y, z, roll, pitch, yaw] of pose parameters
@@ -78,11 +78,11 @@ end
 """
     pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
 
-Optimization function for 3-DOF position estimation with known orientation.
+Optimization function for 3-DOF position estimation with known attitude.
 
 # Arguments
 - `pos_params`: Vector [x, y, z] of position parameters
-- `p`: PoseOptimizationParams containing problem data (must have known_orientation set)
+- `p`: PoseOptimizationParams containing problem data (must have known_attitude set)
 
 # Returns
 - Weighted reprojection error vector
@@ -91,8 +91,8 @@ function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
     # Unpack position parameters: [x, y, z]
     cam_pos = WorldPoint(pos_params[1] * u"m", pos_params[2] * u"m", pos_params[3] * u"m")
 
-    # Use known orientation
-    cam_rot = p.known_orientation
+    # Use known attitude
+    cam_rot = p.known_attitude
 
     # Project runway corners to image coordinates
     projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
@@ -120,7 +120,7 @@ end
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) -> PoseEstimate
 
-Estimate 6-DOF aircraft pose (position + orientation) from runway corner observations.
+Estimate 6-DOF aircraft pose (position + attitude) from runway corner observations.
 
 # Arguments
 - `runway_corners`: 3D runway corner positions in world coordinates
@@ -128,7 +128,7 @@ Estimate 6-DOF aircraft pose (position + orientation) from runway corner observa
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
 - `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
-- `initial_guess_rot`: Initial rotation guess [roll,pitch,yaw] as dimensionless quantities (default: reasonable guess)
+- `initial_guess_rot`: Initial attitude guess [roll,pitch,yaw] as dimensionless quantities (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
@@ -156,7 +156,7 @@ function estimate_pose_6dof(
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
-    # Default initial guesses: reasonable aircraft approach position and orientation
+    # Default initial guesses: reasonable aircraft approach position and attitude
     initial_guess_pos = ustrip.(u"m", initial_guess_pos)
     initial_guess_rot = ustrip.(u"rad", initial_guess_rot)
 
@@ -185,7 +185,7 @@ function estimate_pose_6dof(
 
     # Extract results
     position = WorldPoint(sol.u[1] * u"m", sol.u[2] * u"m", sol.u[3] * u"m")
-    orientation = RotZYX(roll = sol.u[4], pitch = sol.u[5], yaw = sol.u[6])
+    attitude = RotZYX(roll = sol.u[4], pitch = sol.u[5], yaw = sol.u[6])
     residual_norm = norm(sol.resid) * 1pixel
     converged = successful_retcode(sol)
     if !converged
@@ -196,38 +196,38 @@ function estimate_pose_6dof(
     # For now, use identity covariance as placeholder
     uncertainty = MvNormal(zeros(6), I(6))
 
-    return PoseEstimate(position, orientation, uncertainty, residual_norm, converged)
+    return PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
 end
 
 """
     estimate_pose_3dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
-        known_orientation::RotZYX,
+        known_attitude::RotZYX,
         config::CameraConfig{S};
         noise_model = nothing,
         initial_guess_pos = nothing,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) -> PoseEstimate
 
-Estimate 3-DOF aircraft position with known orientation from runway corner observations.
+Estimate 3-DOF aircraft position with known attitude from runway corner observations.
 
 # Arguments
 - `runway_corners`: 3D runway corner positions in world coordinates
 - `observed_corners`: 2D observed corner positions in image coordinates
-- `known_orientation`: Known aircraft orientation
+- `known_attitude`: Known aircraft attitude
 - `config`: Camera configuration with coordinate system type
 - `noise_model`: Noise model for observations (default: 2-pixel std dev)
 - `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
 - `optimization_config`: Optimization parameters
 
 # Returns
-- `PoseEstimate` with estimated position, known orientation, and convergence info
+- `PoseEstimate` with estimated position, known attitude, and convergence info
 """
 function estimate_pose_3dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
-        known_orientation::RotZYX,
+        known_attitude::RotZYX,
         config::CameraConfig{S};
         noise_model = UncorrGaussianNoiseModel(reduce(vcat, [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in observed_corners])),
         initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
@@ -236,11 +236,11 @@ function estimate_pose_3dof(
 
     initial_guess_pos = ustrip.(u"m", initial_guess_pos)
 
-    # Create optimization parameters with known orientation
+    # Create optimization parameters with known attitude
     opt_params = PoseOptimizationParams(
         runway_corners, observed_corners,
         config, noise_model;
-        known_orientation = known_orientation
+        known_attitude = known_attitude
     )
 
     # Create and solve nonlinear least squares problem
@@ -270,5 +270,5 @@ function estimate_pose_3dof(
     # For now, use 3-DOF identity covariance as placeholder
     uncertainty = MvNormal(zeros(3), I(3))
 
-    return PoseEstimate(position, known_orientation, uncertainty, residual_norm, converged)
+    return PoseEstimate(position, known_attitude, uncertainty, residual_norm, converged)
 end

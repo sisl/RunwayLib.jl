@@ -10,15 +10,15 @@ using StaticArrays
     @testset "PoseEstimate Structure" begin
         # Test pose estimate construction with units
         position = WorldPoint(1000.0u"m", 50.0u"m", 100.0u"m")
-        orientation = RotZYX(roll = 0.1, pitch = 0.05, yaw = 0.02)
+        attitude = RotZYX(roll = 0.1, pitch = 0.05, yaw = 0.02)
         uncertainty = MvNormal(zeros(6), I(6))
         residual_norm = 2.5 * 1pixel
         converged = true
 
-        pose_est = PoseEstimate(position, orientation, uncertainty, residual_norm, converged)
+        pose_est = PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
 
         @test pose_est.position == position
-        @test pose_est.orientation == orientation
+        @test pose_est.attitude == attitude
         @test pose_est.uncertainty == uncertainty
         @test pose_est.residual_norm == residual_norm
         @test pose_est.converged == converged
@@ -49,7 +49,7 @@ using StaticArrays
         @test runway_corners[3].x == runway_spec.length_m      # Far end
         @test runway_corners[4].x == runway_spec.length_m      # Far end
 
-        # Simulate camera position and orientation with units
+        # Simulate camera position and attitude with units
         true_cam_pos = WorldPoint(-500.0u"m", 0.0u"m", 100.0u"m")  # 500m before runway, 100m high
         true_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.0)  # Slight pitch down (≈5.7°)
 
@@ -61,7 +61,7 @@ using StaticArrays
 
         # Test basic pose estimation setup with units using StaticArrays
         initial_guess_pos = SA[-400.0u"m", 0.0u"m", 90.0u"m"]  # Close to true position
-        initial_guess_rot = SA[0.0, 0.0, 0.0]  # Close to true orientation (radians)
+        initial_guess_rot = SA[0.0, 0.0, 0.0]  # Close to true attitude (radians)
 
         # Test initial guess is reasonable
         @test abs(initial_guess_pos[1] - true_cam_pos.x) < 200u"m"  # Within 200m
@@ -73,7 +73,7 @@ using StaticArrays
     end
 
     @testset "3-DOF Position Estimation" begin
-        # Test position-only estimation with known orientation and units using StaticArrays
+        # Test position-only estimation with known attitude and units using StaticArrays
         runway_corners = SA[
             WorldPoint(0.0u"m", 25.0u"m", 0.0u"m"),
             WorldPoint(0.0u"m", -25.0u"m", 0.0u"m"),
@@ -82,9 +82,9 @@ using StaticArrays
         ]
 
         true_cam_pos = WorldPoint(-500.0u"m", 10.0u"m", 100.0u"m")
-        known_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.05)  # Known orientation
+        known_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.05)  # Known attitude
 
-        # Test orientation angles are reasonable
+        # Test attitude angles are reasonable
         @test abs(known_cam_rot.theta1) < π / 6  # Roll within ±30°
         @test abs(known_cam_rot.theta2) < π / 6  # Pitch within ±30°
         @test abs(known_cam_rot.theta3) < π / 6  # Yaw within ±30°
@@ -203,10 +203,10 @@ using StaticArrays
             @test pos_error_y < 20.0
             @test pos_error_z < 20.0
 
-            # Check orientation accuracy (should be within ~0.05 radians given noise)
-            rot_error_roll = abs(pose_est.orientation.theta1 - true_rot.theta1)
-            rot_error_pitch = abs(pose_est.orientation.theta2 - true_rot.theta2)
-            rot_error_yaw = abs(pose_est.orientation.theta3 - true_rot.theta3)
+            # Check attitude accuracy (should be within ~0.05 radians given noise)
+            rot_error_roll = abs(pose_est.attitude.theta1 - true_rot.theta1)
+            rot_error_pitch = abs(pose_est.attitude.theta2 - true_rot.theta2)
+            rot_error_yaw = abs(pose_est.attitude.theta3 - true_rot.theta3)
 
             @test rot_error_roll < 0.1
             @test rot_error_pitch < 0.1
@@ -226,14 +226,14 @@ using StaticArrays
             WorldPoint(3000.0u"m", -25.0u"m", 0.0u"m"),
         ]
 
-        # Test multiple random poses with known orientation
+        # Test multiple random poses with known attitude
         for i in 1:5
             # Generate random true position
             true_x = -3500.0 + 1000.0 * rand()  # -1500 to -500 meters
             true_y = -80.0 + 160.0 * rand()     # -80 to +80 meters
             true_z = 60.0 + 300.0 * rand()      # 60 to 360 meters
 
-            # Fixed known orientation
+            # Fixed known attitude
             known_roll = 0.05 * randn()          # Small roll angle
             known_pitch = 0.1 + 0.05 * randn()  # Slight pitch down
             known_yaw = 0.05 * randn()           # Small yaw angle
@@ -286,10 +286,10 @@ using StaticArrays
             @test pos_error_y < 15.0
             @test pos_error_z < 15.0
 
-            # Check that orientation matches the known orientation
-            @test pose_est.orientation.theta1 ≈ known_rot.theta1 atol = 1.0e-10
-            @test pose_est.orientation.theta2 ≈ known_rot.theta2 atol = 1.0e-10
-            @test pose_est.orientation.theta3 ≈ known_rot.theta3 atol = 1.0e-10
+            # Check that attitude matches the known attitude
+            @test pose_est.attitude.theta1 ≈ known_rot.theta1 atol = 1.0e-10
+            @test pose_est.attitude.theta2 ≈ known_rot.theta2 atol = 1.0e-10
+            @test pose_est.attitude.theta3 ≈ known_rot.theta3 atol = 1.0e-10
 
             # Check residual is reasonable
             @test ustrip(pose_est.residual_norm) < 8.0
@@ -340,15 +340,15 @@ using StaticArrays
             optimization_config
         )
         display(pose_est.position - true_pos)
-        display(Rotations.params(pose_est.orientation) - Rotations.params(true_rot))
+        display(Rotations.params(pose_est.attitude) - Rotations.params(true_rot))
 
         @test pose_est.converged
         @test abs(ustrip(u"m", (pose_est.position - true_pos).x)) < 1.0  # Very accurate
         @test abs(ustrip(u"m", (pose_est.position - true_pos).y)) < 1.0
         @test abs(ustrip(u"m", (pose_est.position - true_pos).z)) < 1.0
-        @test abs(Rotations.params(pose_est.orientation)[1] - Rotations.params(true_rot)[1]) < deg2rad(3.0)
-        @test abs(Rotations.params(pose_est.orientation)[2] - Rotations.params(true_rot)[2]) < deg2rad(3.0)
-        @test abs(Rotations.params(pose_est.orientation)[3] - Rotations.params(true_rot)[3]) < deg2rad(3.0)
+        @test abs(Rotations.params(pose_est.attitude)[1] - Rotations.params(true_rot)[1]) < deg2rad(3.0)
+        @test abs(Rotations.params(pose_est.attitude)[2] - Rotations.params(true_rot)[2]) < deg2rad(3.0)
+        @test abs(Rotations.params(pose_est.attitude)[3] - Rotations.params(true_rot)[3]) < deg2rad(3.0)
         @test ustrip(pose_est.residual_norm) < 1.0  # Very small residual
     end
 end
