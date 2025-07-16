@@ -24,12 +24,12 @@ Parameters for pose optimization that get passed through the parameter interface
 - `chol_upper`: Upper triangular matrix from Cholesky decomposition of noise covariance
 - `known_attitude`: Optional known attitude for 3-DOF estimation
 """
-struct PoseOptimizationParams{T, T′, S}
+struct PoseOptimizationParams{T, T′, S, A <: Union{Nothing, <:Rotation{3}}}
     runway_corners::AbstractVector{<:WorldPoint{T}}
     observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
-    known_attitude::Union{Nothing, RotZYX}
+    known_attitude::A
 end
 
 function PoseOptimizationParams(
@@ -95,7 +95,10 @@ function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
     cam_rot = p.known_attitude
 
     # Project runway corners to image coordinates
-    projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
+    projected_corners = [
+        project(cam_pos, cam_rot, corner, p.config)
+            for corner in p.runway_corners
+    ]
 
     # Compute reprojection errors
     error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
