@@ -177,17 +177,17 @@ using StaticArrays
                     # Test that optimization function returns near-zero loss for true parameters
                     noise_model = UncorrGaussianNoiseModel([Normal(0.0, test_case.noise_std) for _ in 1:8])
                     if test_case.estimate_attitude
-                        opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model)
+                        opt_params = PoseOptimizationParams6DOF(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model)
                         true_params = [
                             ustrip.(m, SA[true_x; true_y; true_z]);
                             ustrip.(rad, SA[true_roll, true_pitch, true_yaw])
                         ]
-                        loss_at_true = pose_optimization_6dof(true_params, opt_params)
+                        loss_at_true = pose_optimization(true_params, opt_params)
                         @test norm(loss_at_true) < eps(eltype(true_params))
                     else
-                        opt_params = PoseOptimizationParams(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model; known_attitude = true_rot)
+                        opt_params = PoseOptimizationParams3DOF(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model, true_rot)
                         true_params = [true_x, true_y, true_z]
-                        loss_at_true = pose_optimization_3dof(true_params, opt_params)
+                        loss_at_true = pose_optimization(true_params, opt_params)
                         @test norm(loss_at_true) < 1.0e-10
                     end
 
@@ -229,7 +229,7 @@ using StaticArrays
                         initial_guess_pos = [
                             true_x + randn() * 80.0m,   # ±80m error
                             true_y + randn() * 30.0m,   # ±30m error
-                            true_z + randn() * 40.0m,    # ±40m error
+                            true_z + randn() * 40.0m,    # ±40m error in position
                         ]
 
                         # Run 3-DOF position estimation
