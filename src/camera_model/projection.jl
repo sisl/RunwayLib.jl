@@ -10,8 +10,8 @@ using Unitful
 
 # Camera configuration with type parameter for coordinate system
 struct CameraConfig{S}
-    focal_length::typeof(1.0u"mm")
-    pixel_size::typeof(1.0u"μm" / 1pixel)
+    focal_length::typeof(1.0 * u"mm")
+    pixel_size::typeof(1.0 * u"μm" / 1pixel)
     image_width::typeof(1 * 1pixel)
     image_height::typeof(1 * 1pixel)
     optical_center_u::typeof(1.0 * 1pixel)
@@ -20,8 +20,8 @@ end
 
 # Default camera configurations
 const CAMERA_CONFIG_CENTERED = CameraConfig{:centered}(
-    25.0u"mm",                    # Focal length
-    3.45u"μm" / 1pixel,          # Physical pixel size
+    25.0 * u"mm",                    # Focal length
+    3.45 * u"μm" / 1pixel,          # Physical pixel size
     4096 * 1pixel,               # Image width in pixels
     3000 * 1pixel,               # Image height in pixels
     0.0 * 1pixel,                # Principal point x-coordinate (centered)
@@ -29,8 +29,8 @@ const CAMERA_CONFIG_CENTERED = CameraConfig{:centered}(
 )
 
 const CAMERA_CONFIG_OFFSET = CameraConfig{:offset}(
-    25.0u"mm",                    # Focal length
-    3.45u"μm" / 1pixel,          # Physical pixel size
+    25.0 * u"mm",                    # Focal length
+    3.45 * u"μm" / 1pixel,          # Physical pixel size
     4096 * 1pixel,               # Image width in pixels
     3000 * 1pixel,               # Image height in pixels
     2047.5 * 1pixel,             # Principal point x-coordinate (image center)

@@ -4,7 +4,7 @@ using LinearAlgebra
 using StaticArrays
 using StaticArrays: SVector
 using Rotations
-using Unitful
+using Unitful, Unitful.DefaultSymbols
 using Unitful: Length, DimensionlessQuantity
 using Distributions
 using TypedTables
