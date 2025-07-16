@@ -14,50 +14,50 @@ using LinearAlgebra
 using Rotations
 
 """
-    PoseOptimizationParams6DOF{T, T′, S}
+    PoseOptimizationParams6DOF{T, T′, S, RC, OC}
 
 Parameters for 6-DOF pose optimization (position + attitude).
 """
-struct PoseOptimizationParams6DOF{T, T′, S}
-    runway_corners::AbstractVector{<:WorldPoint{T}}
-    observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
+struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+    runway_corners::RC
+    observed_corners::OC
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
 
     function PoseOptimizationParams6DOF(
-            runway_corners::AbstractVector{<:WorldPoint{T}},
-            observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
+            runway_corners::RC,
+            observed_corners::OC,
             config::CameraConfig{S},
             noise_model
-        ) where {T, T′, S}
+        ) where {T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
         Σ = covmatrix(noise_model)
         _, U = cholesky(Σ) # L is not used
-        return new{T, T′, S}(runway_corners, observed_corners, config, U)
+        return new{T, T′, S, RC, OC}(runway_corners, observed_corners, config, U)
     end
 end
 
 """
-    PoseOptimizationParams3DOF{T, T′, S, A <: Rotation{3}}
+    PoseOptimizationParams3DOF{T, T′, S, A, RC, OC}
 
 Parameters for 3-DOF pose optimization (position only with known attitude).
 """
-struct PoseOptimizationParams3DOF{T, T′, S, A <: Rotation{3}}
-    runway_corners::AbstractVector{<:WorldPoint{T}}
-    observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
+struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+    runway_corners::RC
+    observed_corners::OC
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
     known_attitude::A # Now explicitly part of 3-DOF params
 
     function PoseOptimizationParams3DOF(
-            runway_corners::AbstractVector{<:WorldPoint{T}},
-            observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
+            runway_corners::RC,
+            observed_corners::OC,
             config::CameraConfig{S},
             noise_model,
             known_attitude::A
-        ) where {T, T′, S, A <: Rotation{3}}
+        ) where {T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
         Σ = covmatrix(noise_model)
         _, U = cholesky(Σ)
-        return new{T, T′, S, A}(runway_corners, observed_corners, config, U, known_attitude)
+        return new{T, T′, S, A, RC, OC}(runway_corners, observed_corners, config, U, known_attitude)
     end
 end
 
@@ -215,42 +215,6 @@ end
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
-        noise_model = nothing,
-        initial_guess_pos = nothing,
-        initial_guess_rot = nothing,
-        optimization_config = DEFAULT_OPTIMIZATION_CONFIG
-    ) -> PoseEstimate
-
-Estimate 6-DOF aircraft pose (position + attitude) from runway corner observations.
-
-# Arguments
-- `runway_corners`: 3D runway corner positions in world coordinates
-- `observed_corners`: 2D observed corner positions in image coordinates
-- `config`: Camera configuration with coordinate system type
-- `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
-- `initial_guess_rot`: Initial attitude guess [roll,pitch,yaw] as dimensionless quantities (default: reasonable guess)
-- `optimization_config`: Optimization parameters
-
-# Returns
-- `PoseEstimate` with estimated pose, uncertainty, and convergence info
-
-# Examples
-```julia
-runway_corners = get_runway_corners(runway_spec)
-observed_corners = [ProjectionPoint(100.0*1pixel, 200.0*1pixel), ...]
-
-pose_est = estimate_pose_6dof(runway_corners, observed_corners, CAMERA_CONFIG_OFFSET;
-                             initial_guess_pos = SA[-800.0u"m", 0.0u"m", 120.0u"m"],
-                             initial_guess_rot = SA[0.0u"rad", 0.05u"rad", 0.0u"rad"])
-println("Position: ", pose_est.position)
-println("Converged: ", pose_est.converged)
-```
-"""
-function estimate_pose_6dof(
-        runway_corners::AbstractVector{<:WorldPoint},
-        observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
-        config::CameraConfig{S};
         noise_model = UncorrGaussianNoiseModel(reduce(vcat, [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in observed_corners])),
         initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
         initial_guess_rot::AbstractVector{<:DimensionlessQuantity} = SA[0.0, 0.0, 0.0] * u"rad",
@@ -274,30 +238,6 @@ end
 
 """
     estimate_pose_3dof(
-        runway_corners::AbstractVector{<:WorldPoint},
-        observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
-        known_attitude::RotZYX,
-        config::CameraConfig{S};
-        noise_model = nothing,
-        initial_guess_pos = nothing,
-        optimization_config = DEFAULT_OPTIMIZATION_CONFIG
-    ) -> PoseEstimate
-
-Estimate 3-DOF aircraft position with known attitude from runway corner observations.
-
-# Arguments
-- `runway_corners`: 3D runway corner positions in world coordinates
-- `observed_corners`: 2D observed corner positions in image coordinates
-- `known_attitude`: Known aircraft attitude
-- `config`: Camera configuration with coordinate system type
-- `noise_model`: Noise model for observations (default: 2-pixel std dev)
-- `initial_guess_pos`: Initial position guess [x,y,z] with length units (default: reasonable guess)
-- `optimization_config`: Optimization parameters
-
-# Returns
-- `PoseEstimate` with estimated position, known attitude, and convergence info
-"""
-function estimate_pose_3dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         known_attitude::RotZYX,
