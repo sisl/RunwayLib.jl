@@ -52,9 +52,9 @@ include("data_management/runway_database.jl")
 include("pose_estimation/types.jl")
 include("pose_estimation/optimization.jl")
 
-# Export pose estimation functions
-export estimate_pose_6dof, estimate_pose_3dof
-export PoseOptimizationParams, pose_optimization_6dof, pose_optimization_3dof
+# Export pose estimation entrypoints and types
+export estimate_pose_6dof, estimate_pose_3dof, pose_optimization
+export PoseOptimizationParams6DOF, PoseOptimizationParams3DOF
 
 function compute_raim_statistic(pose_estimate, runway_spec, corners, noise_model)
     error("compute_raim_statistic not yet implemented")
