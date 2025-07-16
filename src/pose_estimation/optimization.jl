@@ -7,6 +7,7 @@ noise models.
 """
 
 using SimpleNonlinearSolve
+using Moshi: @match
 import NonlinearSolveFirstOrder: LevenbergMarquardtTrustRegion, LevenbergMarquardt
 import SciMLBase: successful_retcode
 using StaticArrays
@@ -64,21 +65,28 @@ struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector
 end
 
 """
-    pose_optimization_6dof(pose_params, p::PoseOptimizationParams6DOF)
+    pose_optimization(pose_params, p)
 
-Optimization function for 6-DOF pose estimation (position + attitude).
+Unified optimization function for pose estimation.
 
 # Arguments
-- `pose_params`: Vector [x, y, z, roll, pitch, yaw] of pose parameters
-- `p`: PoseOptimizationParams6DOF containing problem data
+- `pose_params`: Vector of pose parameters
+    - `[x, y, z, roll, pitch, yaw]` for 6-DOF
+    - `[x, y, z]` for 3-DOF
+- `p`: `PoseOptimizationParams6DOF` or `PoseOptimizationParams3DOF`
 
 # Returns
 - Weighted reprojection error vector
 """
-function pose_optimization_6dof(pose_params, p::PoseOptimizationParams6DOF)
-    # Unpack pose parameters: [x, y, z, roll, pitch, yaw]
+function pose_optimization(pose_params::AbstractVector{<:Real}, p::Union{PoseOptimizationParams6DOF, PoseOptimizationParams3DOF})
+    # Unpack position parameters: [x, y, z]
     cam_pos = WorldPoint(pose_params[1:3] * u"m")
-    cam_rot = RotZYX(roll = pose_params[4] * u"rad", pitch = pose_params[5] * u"rad", yaw = pose_params[6] * u"rad")
+
+    # Determine camera rotation via pattern matching
+    cam_rot = @match p begin
+        q::PoseOptimizationParams6DOF => RotZYX(roll = pose_params[4] * u"rad", pitch = pose_params[5] * u"rad", yaw = pose_params[6] * u"rad")
+        q::PoseOptimizationParams3DOF => q.known_attitude
+    end
 
     # Project runway corners to image coordinates
     projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
@@ -89,44 +97,8 @@ function pose_optimization_6dof(pose_params, p::PoseOptimizationParams6DOF)
     end
     errors = reduce(vcat, SVector.(error_vectors))
 
-    U = p.chol_upper
     # Apply noise weighting via Cholesky decomposition
-    return ustrip.(NoUnits, (U' \ errors) / pixel)
-end
-
-"""
-    pose_optimization_3dof(pos_params, p::PoseOptimizationParams3DOF)
-
-Optimization function for 3-DOF position estimation with known attitude.
-
-# Arguments
-- `pos_params`: Vector [x, y, z] of position parameters
-- `p`: PoseOptimizationParams3DOF containing problem data
-
-# Returns
-- Weighted reprojection error vector
-"""
-function pose_optimization_3dof(pos_params, p::PoseOptimizationParams3DOF)
-    # Unpack position parameters: [x, y, z]
-    cam_pos = WorldPoint(pos_params[1:3] * u"m")
-
-    # Use known attitude
-    cam_rot = p.known_attitude
-
-    # Project runway corners to image coordinates
-    projected_corners = [
-        project(cam_pos, cam_rot, corner, p.config)
-            for corner in p.runway_corners
-    ]
-
-    # Compute reprojection errors
-    error_vectors = map(zip(projected_corners, p.observed_corners)) do (proj, obs)
-        proj - obs
-    end
-    errors = reduce(vcat, SVector.(error_vectors))
-
     U = p.chol_upper
-    # Apply noise weighting via Cholesky decomposition
     return ustrip.(NoUnits, (U' \ errors) / pixel)
 end
 
@@ -231,7 +203,7 @@ end
     opt_params = PoseOptimizationParams6DOF(runway_corners, observed_corners, config, noise_model)
 
     return _solve_pose_optimization(
-        pose_optimization_6dof,
+        pose_optimization,
         initial_guess,
         opt_params,
         optimization_config
@@ -258,7 +230,7 @@ end
     )
 
     return _solve_pose_optimization(
-        pose_optimization_3dof,
+        pose_optimization,
         initial_guess_pos_ustrip,
         opt_params,
         optimization_config
