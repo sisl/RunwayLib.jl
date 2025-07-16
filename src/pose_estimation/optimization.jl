@@ -72,7 +72,7 @@ function pose_optimization_6dof(pose_params, p::PoseOptimizationParams)
 
     U = p.chol_upper
     # Apply noise weighting via Cholesky decomposition
-    return ustrip.(NoUnits, (U' \ errors)/pixel)
+    return ustrip.(NoUnits, (U' \ errors) / pixel)
 end
 
 """
@@ -89,7 +89,7 @@ Optimization function for 3-DOF position estimation with known attitude.
 """
 function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
     # Unpack position parameters: [x, y, z]
-    cam_pos = WorldPoint(pos_params[1:3] * u"m")
+    cam_pos = WorldPoint(pos_params[1:3]m)
 
     # Use known attitude
     cam_rot = p.known_attitude
@@ -105,7 +105,7 @@ function pose_optimization_3dof(pos_params, p::PoseOptimizationParams)
 
     U = p.chol_upper
     # Apply noise weighting via Cholesky decomposition
-    return ustrip.(NoUnits, (U' \ errors)/pixel)
+    return ustrip.(NoUnits, (U' \ errors) / pixel)
 end
 
 
