@@ -23,17 +23,17 @@ struct PoseOptimizationParams6DOF{T, T′, S}
     observed_corners::AbstractVector{<:ProjectionPoint{T′, S}}
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
-end
 
-function PoseOptimizationParams6DOF(
-        runway_corners::AbstractVector{<:WorldPoint{T}},
-        observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
-        config::CameraConfig{S},
-        noise_model
-    ) where {T, T′, S}
-    Σ = covmatrix(noise_model)
-    _, U = cholesky(Σ) # L is not used
-    return PoseOptimizationParams6DOF{T, T′, S}(runway_corners, observed_corners, config, U)
+    function PoseOptimizationParams6DOF(
+            runway_corners::AbstractVector{<:WorldPoint{T}},
+            observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
+            config::CameraConfig{S},
+            noise_model
+        ) where {T, T′, S}
+        Σ = covmatrix(noise_model)
+        _, U = cholesky(Σ) # L is not used
+        return new{T, T′, S}(runway_corners, observed_corners, config, U)
+    end
 end
 
 """
@@ -47,18 +47,18 @@ struct PoseOptimizationParams3DOF{T, T′, S, A <: Rotation{3}}
     config::CameraConfig{S}
     chol_upper::AbstractMatrix{Float64}
     known_attitude::A # Now explicitly part of 3-DOF params
-end
 
-function PoseOptimizationParams3DOF(
-        runway_corners::AbstractVector{<:WorldPoint{T}},
-        observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
-        config::CameraConfig{S},
-        noise_model,
-        known_attitude::A
-    ) where {T, T′, S, A <: Rotation{3}}
-    Σ = covmatrix(noise_model)
-    _, U = cholesky(Σ)
-    return PoseOptimizationParams3DOF{T, T′, S, A}(runway_corners, observed_corners, config, U, known_attitude)
+    function PoseOptimizationParams3DOF(
+            runway_corners::AbstractVector{<:WorldPoint{T}},
+            observed_corners::AbstractVector{<:ProjectionPoint{T′, S}},
+            config::CameraConfig{S},
+            noise_model,
+            known_attitude::A
+        ) where {T, T′, S, A <: Rotation{3}}
+        Σ = covmatrix(noise_model)
+        _, U = cholesky(Σ)
+        return new{T, T′, S, A}(runway_corners, observed_corners, config, U, known_attitude)
+    end
 end
 
 """
