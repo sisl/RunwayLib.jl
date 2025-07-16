@@ -75,8 +75,8 @@ Optimization function for 6-DOF pose estimation (position + attitude).
 """
 function pose_optimization_6dof(pose_params, p::PoseOptimizationParams6DOF)
     # Unpack pose parameters: [x, y, z, roll, pitch, yaw]
-    cam_pos = WorldPoint(pose_params[1:3]m)
-    cam_rot = RotZYX(roll = pose_params[4]rad, pitch = pose_params[5]rad, yaw = pose_params[6]rad)
+    cam_pos = WorldPoint(pose_params[1:3] * u"m")
+    cam_rot = RotZYX(roll = pose_params[4] * u"rad", pitch = pose_params[5] * u"rad", yaw = pose_params[6] * u"rad")
 
     # Project runway corners to image coordinates
     projected_corners = [project(cam_pos, cam_rot, corner, p.config) for corner in p.runway_corners]
@@ -106,7 +106,7 @@ Optimization function for 3-DOF position estimation with known attitude.
 """
 function pose_optimization_3dof(pos_params, p::PoseOptimizationParams3DOF)
     # Unpack position parameters: [x, y, z]
-    cam_pos = WorldPoint(pos_params[1:3]m)
+    cam_pos = WorldPoint(pos_params[1:3] * u"m")
 
     # Use known attitude
     cam_rot = p.known_attitude
