@@ -337,14 +337,14 @@ RunwayPoseEstimation.jl/
 ## Development Roadmap
 
 ### Phase 1: Core Infrastructure
-- [ ] Coordinate system types and transformations
-- [ ] Camera model and projection functions
-- [ ] Basic pose estimation (6-DOF and 3-DOF)
-- [ ] Data loading utilities
+- [x] Coordinate system types and transformations
+- [x] Camera model and projection functions
+- [x] Basic pose estimation (6-DOF and 3-DOF)
+- [x] Data loading utilities
 
 ### Phase 2: Uncertainty Quantification
-- [ ] Integration with ProbabilisticParameterEstimators
-- [ ] Noise model construction
+- [x] Integration with ProbabilisticParameterEstimators
+- [x] Noise model construction
 - [ ] Uncertainty propagation
 - [ ] Calibration assessment tools
 
