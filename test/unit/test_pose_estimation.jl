@@ -314,7 +314,7 @@ using StaticArrays
             runway_corners, tiny_noise_observations, CAMERA_CONFIG_OFFSET;
             noise_model = noise_model,
             initial_guess_pos = [true_pos.x, true_pos.y, true_pos.z],
-            initial_guess_rot = [true_rot.theta1, true_rot.theta2, true_rot.theta3]rad,
+            initial_guess_rot = [true_rot.theta1, true_rot.theta2, true_rot.theta3] .* rad,
             optimization_config
         )
         display(pose_est.position - true_pos)
