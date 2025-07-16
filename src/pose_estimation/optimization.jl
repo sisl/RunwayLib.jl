@@ -48,7 +48,7 @@ struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector
     observed_corners::OC
     config::CameraConfig{S}
     chol_upper::M
-    known_attitude::A # Now explicitly part of 3-DOF params
+    known_attitude::A
 
     function PoseOptimizationParams3DOF(
             runway_corners::RC,
@@ -130,56 +130,42 @@ function _run_solver(
 end
 
 """
-    _solve_pose_optimization(...)
+    _solve_pose_optimization(problem_func, initial_guess, opt_params, optimization_config)
 
-Internal helper function to solve the nonlinear least squares problem for 6-DOF pose estimation.
+Internal helper function to solve the nonlinear least squares problem for pose estimation.
+Handles both 6-DOF and 3-DOF based on `opt_params` type.
 """
 function _solve_pose_optimization(
         problem_func::F,
         initial_guess::AbstractVector{<:Real},
-        opt_params::PoseOptimizationParams6DOF,
+        opt_params::Union{PoseOptimizationParams6DOF, PoseOptimizationParams3DOF},
         optimization_config::OptimizationConfig
     ) where {F <: Function}
 
     sol = _run_solver(problem_func, initial_guess, opt_params, optimization_config)
 
-    # Extract results specific to 6-DOF
+    # Extract common results
     position = WorldPoint(sol.u[1] * u"m", sol.u[2] * u"m", sol.u[3] * u"m")
-    attitude = RotZYX(roll = sol.u[4], pitch = sol.u[5], yaw = sol.u[6])
-    residual_norm = norm(sol.resid) * 1pixel
     converged = successful_retcode(sol)
-    if !converged
-        println(sol.retcode) # Print only for 6-DOF non-convergence
+    residual_norm = norm(sol.resid) * 1pixel
+
+    # Determine attitude and print on non-convergence for 6-DOF
+    attitude = @match opt_params begin
+        p::PoseOptimizationParams6DOF => begin
+            a = RotZYX(roll = sol.u[4], pitch = sol.u[5], yaw = sol.u[6])
+            if !converged
+                println(sol.retcode)
+            end
+            a
+        end
+        p::PoseOptimizationParams3DOF => p.known_attitude
     end
 
-    # TODO: Compute uncertainty from Jacobian at solution
-    uncertainty = MvNormal(zeros(6), I(6)) # 6-DOF uncertainty
-
-    return PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
-end
-
-"""
-    _solve_pose_optimization(...)
-
-Internal helper function to solve the nonlinear least squares problem for 3-DOF pose estimation.
-"""
-function _solve_pose_optimization(
-        problem_func::F,
-        initial_guess::AbstractVector{<:Real},
-        opt_params::PoseOptimizationParams3DOF,
-        optimization_config::OptimizationConfig
-    ) where {F <: Function}
-
-    sol = _run_solver(problem_func, initial_guess, opt_params, optimization_config)
-
-    # Extract results specific to 3-DOF
-    position = WorldPoint(sol.u[1] * u"m", sol.u[2] * u"m", sol.u[3] * u"m")
-    attitude = opt_params.known_attitude # Attitude comes directly from params
-    residual_norm = norm(sol.resid) * 1pixel
-    converged = successful_retcode(sol)
-
-    # TODO: Compute uncertainty from Jacobian at solution
-    uncertainty = MvNormal(zeros(3), I(3)) # 3-DOF uncertainty
+    # Compute uncertainty
+    uncertainty = @match opt_params begin
+        p::PoseOptimizationParams6DOF => MvNormal(zeros(6), I(6))
+        p::PoseOptimizationParams3DOF => MvNormal(zeros(3), I(3))
+    end
 
     return PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
 end
