@@ -7,7 +7,7 @@ noise models.
 """
 
 using SimpleNonlinearSolve
-using Moshi: @match
+import Moshi.Match: @match
 import NonlinearSolveFirstOrder: LevenbergMarquardtTrustRegion, LevenbergMarquardt
 import SciMLBase: successful_retcode
 using StaticArrays
@@ -19,7 +19,7 @@ using Rotations
 
 Parameters for 6-DOF pose optimization (position + attitude).
 """
-struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}, M<:UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
+struct PoseOptimizationParams6DOF{T, T′, S, RC <: AbstractVector{WorldPoint{T}}, OC <: AbstractVector{ProjectionPoint{T′, S}}, M <: UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
     runway_corners::RC
     observed_corners::OC
     config::CameraConfig{S}
@@ -30,10 +30,9 @@ struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}},
             observed_corners::OC,
             config::CameraConfig{S},
             noise_model
-        ) where {T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+        ) where {T, T′, S, RC <: AbstractVector{WorldPoint{T}}, OC <: AbstractVector{ProjectionPoint{T′, S}}}
         Σ = covmatrix(noise_model)
-        F = cholesky(Σ) # L is not used
-        U = F.U
+        U = cholesky(Σ).U # L is not used
         return new{T, T′, S, RC, OC, typeof(U)}(runway_corners, observed_corners, config, U)
     end
 end
@@ -43,7 +42,7 @@ end
 
 Parameters for 3-DOF pose optimization (position only with known attitude).
 """
-struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}, M<:UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
+struct PoseOptimizationParams3DOF{T, T′, S, A <: Rotation{3}, RC <: AbstractVector{WorldPoint{T}}, OC <: AbstractVector{ProjectionPoint{T′, S}}, M <: UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
     runway_corners::RC
     observed_corners::OC
     config::CameraConfig{S}
@@ -56,10 +55,9 @@ struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector
             config::CameraConfig{S},
             noise_model,
             known_attitude::A
-        ) where {T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+        ) where {T, T′, S, A <: Rotation{3}, RC <: AbstractVector{WorldPoint{T}}, OC <: AbstractVector{ProjectionPoint{T′, S}}}
         Σ = covmatrix(noise_model)
-        F = cholesky(Σ)
-        U = F.U
+        F = cholesky(Σ).U
         return new{T, T′, S, A, RC, OC, typeof(U)}(runway_corners, observed_corners, config, U, known_attitude)
     end
 end
@@ -103,33 +101,6 @@ function pose_optimization(pose_params::AbstractVector{<:Real}, p::Union{PoseOpt
 end
 
 """
-    _run_solver(problem_func, initial_guess, opt_params, optimization_config)
-
-Internal helper to configure and run the nonlinear least squares solver.
-"""
-function _run_solver(
-        problem_func::F,
-        initial_guess::AbstractVector{<:Real},
-        opt_params,
-        optimization_config::OptimizationConfig
-    ) where {F <: Function}
-
-    prob = NonlinearLeastSquaresProblem{false}(problem_func, initial_guess, opt_params)
-    termination_condition = AbsNormSafeBestTerminationMode(
-        Base.Fix2(norm, 2); max_stalled_steps = 32
-    )
-
-    return solve(
-        prob,
-        LevenbergMarquardt();
-        abstol = ustrip(optimization_config.convergence_tolerance),
-        reltol = optimization_config.step_tolerance,
-        maxiters = optimization_config.max_iterations,
-        termination_condition,
-    )
-end
-
-"""
     _solve_pose_optimization(problem_func, initial_guess, opt_params, optimization_config)
 
 Internal helper function to solve the nonlinear least squares problem for pose estimation.
@@ -142,7 +113,19 @@ function _solve_pose_optimization(
         optimization_config::OptimizationConfig
     ) where {F <: Function}
 
-    sol = _run_solver(problem_func, initial_guess, opt_params, optimization_config)
+    prob = NonlinearLeastSquaresProblem{false}(problem_func, initial_guess, opt_params)
+    termination_condition = AbsNormSafeBestTerminationMode(
+        Base.Fix2(norm, 2); max_stalled_steps = 32
+    )
+
+    sol = solve(
+        prob,
+        LevenbergMarquardt();
+        abstol = ustrip(optimization_config.convergence_tolerance),
+        reltol = optimization_config.step_tolerance,
+        maxiters = optimization_config.max_iterations,
+        termination_condition,
+    )
 
     # Extract common results
     position = WorldPoint(sol.u[1] * u"m", sol.u[2] * u"m", sol.u[3] * u"m")
@@ -170,8 +153,7 @@ function _solve_pose_optimization(
     return PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
 end
 
-"""
-    estimate_pose_6dof(
+function estimate_pose_6dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
@@ -196,8 +178,7 @@ end
     )
 end
 
-"""
-    estimate_pose_3dof(
+function estimate_pose_3dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         known_attitude::RotZYX,
