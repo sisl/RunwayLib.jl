@@ -14,15 +14,15 @@ using LinearAlgebra
 using Rotations
 
 """
-    PoseOptimizationParams6DOF{T, T′, S, RC, OC}
+    PoseOptimizationParams6DOF{T, T′, S, RC, OC, M}
 
 Parameters for 6-DOF pose optimization (position + attitude).
 """
-struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}, M<:UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
     runway_corners::RC
     observed_corners::OC
     config::CameraConfig{S}
-    chol_upper::AbstractMatrix{Float64}
+    chol_upper::M
 
     function PoseOptimizationParams6DOF(
             runway_corners::RC,
@@ -31,21 +31,22 @@ struct PoseOptimizationParams6DOF{T, T′, S, RC<:AbstractVector{WorldPoint{T}},
             noise_model
         ) where {T, T′, S, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
         Σ = covmatrix(noise_model)
-        _, U = cholesky(Σ) # L is not used
-        return new{T, T′, S, RC, OC}(runway_corners, observed_corners, config, U)
+        F = cholesky(Σ) # L is not used
+        U = F.U
+        return new{T, T′, S, RC, OC, typeof(U)}(runway_corners, observed_corners, config, U)
     end
 end
 
 """
-    PoseOptimizationParams3DOF{T, T′, S, A, RC, OC}
+    PoseOptimizationParams3DOF{T, T′, S, A, RC, OC, M}
 
 Parameters for 3-DOF pose optimization (position only with known attitude).
 """
-struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
+struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}, M<:UpperTriangular{Float64, <:AbstractMatrix{Float64}}}
     runway_corners::RC
     observed_corners::OC
     config::CameraConfig{S}
-    chol_upper::AbstractMatrix{Float64}
+    chol_upper::M
     known_attitude::A # Now explicitly part of 3-DOF params
 
     function PoseOptimizationParams3DOF(
@@ -56,8 +57,9 @@ struct PoseOptimizationParams3DOF{T, T′, S, A<:Rotation{3}, RC<:AbstractVector
             known_attitude::A
         ) where {T, T′, S, A<:Rotation{3}, RC<:AbstractVector{WorldPoint{T}}, OC<:AbstractVector{ProjectionPoint{T′,S}}}
         Σ = covmatrix(noise_model)
-        _, U = cholesky(Σ)
-        return new{T, T′, S, A, RC, OC}(runway_corners, observed_corners, config, U, known_attitude)
+        F = cholesky(Σ)
+        U = F.U
+        return new{T, T′, S, A, RC, OC, typeof(U)}(runway_corners, observed_corners, config, U, known_attitude)
     end
 end
 
