@@ -13,10 +13,10 @@ import Moshi.Match: @match
 struct CameraConfig{S}
     focal_length::typeof(1.0 * u"mm")
     pixel_size::typeof(1.0 * u"μm" / 1pixel)
-    image_width::typeof(1 * 1pixel)
-    image_height::typeof(1 * 1pixel)
-    optical_center_u::typeof(1.0 * 1pixel)
-    optical_center_v::typeof(1.0 * 1pixel)
+    image_width::typeof(1pixel)
+    image_height::typeof(1pixel)
+    optical_center_u::typeof(1.0pixel)
+    optical_center_v::typeof(1.0pixel)
 end
 
 # Default camera configurations
@@ -106,8 +106,8 @@ function project(
 
     u_centered = f_pixels * (cam_pt.y / cam_pt.x)  # Left positive
     v_centered = f_pixels * (cam_pt.z / cam_pt.x)  # Up positive
-    T = typeof(u_centered)
 
+    T = typeof(u_centered)
     return @match camconfig begin
         ::CameraConfig{:centered} => ProjectionPoint{T, :centered}(u_centered, v_centered)
         ::CameraConfig{:offset} => let
