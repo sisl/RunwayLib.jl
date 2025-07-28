@@ -10,6 +10,7 @@ using Distributions
 using TypedTables
 using SimpleNonlinearSolve
 _uconvert(u) = Base.Fix1(uconvert, u)
+_ustrip(u) = Base.Fix1(ustrip, u)
 
 # Define custom pixel unit
 @unit pixel "pixel" Pixel 1 false
@@ -54,7 +55,8 @@ include("pose_estimation/types.jl")
 include("camera_model/projection.jl")
 include("camera_model/errors.jl")
 # include("data_management/runway_database.jl")
-# include("pose_estimation/optimization.jl")
+include("pose_estimation/optimization.jl")
+include("pose_estimation/errors.jl")
 
 # Export pose estimation entrypoints and types
 export estimate_pose_6dof, estimate_pose_3dof, pose_optimization

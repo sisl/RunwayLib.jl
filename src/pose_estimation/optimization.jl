@@ -8,7 +8,7 @@ noise models.
 
 using SimpleNonlinearSolve
 import Moshi.Match: @match
-import NonlinearSolveFirstOrder: LevenbergMarquardtTrustRegion, LevenbergMarquardt
+import NonlinearSolveFirstOrder: LevenbergMarquardt, NewtonRaphson, TrustRegion
 import SciMLBase: successful_retcode
 using StaticArrays
 using LinearAlgebra
@@ -22,10 +22,10 @@ abstract type AbstractPoseOptimizationParams end
 
 Parameters for 6-DOF pose optimization (position + attitude).
 """
-struct PoseOptimizationParams6DOF{T, T′, S,
+struct PoseOptimizationParams6DOF{T, T′, T′′, S,
         RC <: AbstractVector{WorldPoint{T}},
         OC <: AbstractVector{ProjectionPoint{T′, S}},
-        M  <: AbstractTriangular{Float64, <:AbstractMatrix{Float64}}
+        M  <: AbstractMatrix{T′′}
     } <: AbstractPoseOptimizationParams
     runway_corners::RC
     observed_corners::OC
@@ -38,11 +38,11 @@ end
 
 Parameters for 3-DOF pose optimization (position only with known attitude).
 """
-struct PoseOptimizationParams3DOF{T, T′, S,
+struct PoseOptimizationParams3DOF{T, T′, T′′, S,
         A  <: Rotation{3},
         RC <: AbstractVector{WorldPoint{T}},
         OC <: AbstractVector{ProjectionPoint{T′, S}},
-        M  <: AbstractTriangular{Float64, <:AbstractMatrix{Float64}}
+        M  <: AbstractMatrix{T′′}
     } <: AbstractPoseOptimizationParams
     runway_corners::RC
     observed_corners::OC
@@ -52,7 +52,7 @@ struct PoseOptimizationParams3DOF{T, T′, S,
 end
 
 """
-    pose_optimization(pose_params, p)
+    pose_optimization(pose_params, ps)
 
 Unified optimization function for pose estimation.
 
@@ -60,7 +60,7 @@ Unified optimization function for pose estimation.
 - `pose_params`: Vector of pose parameters
     - `[x, y, z, roll, pitch, yaw]` for 6-DOF
     - `[x, y, z]` for 3-DOF
-- `p`: `PoseOptimizationParams6DOF` or `PoseOptimizationParams3DOF`
+- `ps`: `PoseOptimizationParams6DOF` or `PoseOptimizationParams3DOF`
 
 # Returns
 - Weighted reprojection error vector
@@ -86,17 +86,21 @@ function pose_optimization_objective(optvar::AbstractVector{<:Real},
     # Compute reprojection errors
     error_vectors = [
         (proj - obs)
-        for (proj, obs) in zip(projected_corners, p.observed_corners)
+        for (proj, obs) in zip(projected_corners, ps.observed_corners)
     ]
-    errors = reduce(vcat, SVector.(error_vectors))
+    errors = reduce(vcat, SVector{2}.(error_vectors))
 
     # Apply noise weighting via Cholesky decomposition
-    U = ps.chol_upper
-    return ustrip.(NoUnits, (U' \ errors) / pixel)
+    U = ps.chol_upper*1pixel
+    L_inv = inv(U')
+    return ustrip.(NoUnits, L_inv * errors)
+    # return ustrip.(NoUnits, errors/pixel)
 end
 
-const poseoptfn = NonlinearFunction{false}(pose_optimization_objective,
-        AutoForwardDiff(; chunksize=1))
+const POSEOPTFN = NonlinearFunction{false}(pose_optimization_objective)
+const AD = AutoForwardDiff(; chunksize=1)
+# const ALG = LevenbergMarquardt(; autodiff=AD)
+const ALG = TrustRegion(; autodiff=AD)
 
 const _default6dofnoisemodel(pts) =
     UncorrGaussianNoiseModel(
@@ -104,7 +108,7 @@ const _default6dofnoisemodel(pts) =
                              Normal(0.0, 2.0)]
                           for _ in pts])
     )
-function estimate_pose_6dof(
+function estimatepose6dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
@@ -113,37 +117,21 @@ function estimate_pose_6dof(
         initial_guess_rot::AbstractVector{<:DimensionlessQuantity} = SA[0.0, 0.0, 0.0]rad,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
-
-    # Default initial guesses: reasonable aircraft approach position and attitude
-    initial_guess_pos = initial_guess_pos .|> ustrip(rad)
-    initial_guess_rot = initial_guess_rot .|> ustrip(rad)
-
-    initial_guess = [initial_guess_pos; initial_guess_rot]
-    opt_params = PoseOptimizationParams6DOF(
-        runway_corners, observed_corners, config, noise_model)
-
-    return _solve_pose_optimization(pose_optimization,
-                                    initial_guess,
-                                    opt_params,
-                                    optimization_config)
     u₀ = [initial_guess_pos .|> _ustrip(m);
-          initial_guess_ros .|> _ustrip(rad)]
-
+          initial_guess_rot .|> _ustrip(rad)]
 
     ps = PoseOptimizationParams6DOF(
         runway_corners, observed_corners,
-        config, noise_model)
+        config, cholesky(covmatrix(noise_model)).U)
 
-
-    prob = NonlinearLeastSquaresProblem{false}(poseoptfn, u₀, ps)
-    alg = LevenbergMarquardtTrustRegion()
+    prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
     # termination_condition = AbsNormSafeBestTerminationMode(
     #     Base.Fix2(norm, 2);
     #     max_stalled_steps = 32)
 
-    sol = solve(prob, alg)
+    sol = solve(prob, ALG)
 
-    !recode_successful(sol) || throw(OptimizationFailedError(sol.retcode, sol))
+    !successful_retcode(sol) && throw(OptimizationFailedError(sol.retcode, sol))
     pos = WorldPoint(sol.u[1:3]m)
     rot = RotZYX(roll=sol.u[4]rad, pitch=sol.u[5]rad, yaw=sol.u[6]rad)
     return (; pos, rot)
@@ -155,7 +143,7 @@ const _default3dofnoisemodel(pts) =
                              Normal(0.0, 2.0)]
                           for _ in pts])
     )
-function estimate_pose_3dof(
+function estimatepose3dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         known_attitude::RotZYX,
@@ -169,18 +157,18 @@ function estimate_pose_3dof(
 
     ps = PoseOptimizationParams3DOF(
         runway_corners, observed_corners,
-        config, noise_model, known_attitude)
+        config, cholesky(covmatrix(noise_model)).U, known_attitude)
 
 
-    prob = NonlinearLeastSquaresProblem{false}(poseoptfn, u₀, ps)
-    alg = LevenbergMarquardtTrustRegion()
+    prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
+    # alg = LevenbergMarquardt()
     # termination_condition = AbsNormSafeBestTerminationMode(
     #     Base.Fix2(norm, 2);
     #     max_stalled_steps = 32)
 
-    sol = solve(prob, alg)
+    sol = solve(prob, ALG)
 
-    !recode_successful(sol) || throw(OptimizationFailedError(sol.retcode, sol))
+    !successful_retcode(sol) && throw(OptimizationFailedError(sol.retcode, sol))
     pos = WorldPoint(sol.u[1:3]m)
     rot = known_attitude
     return (; pos, rot)
