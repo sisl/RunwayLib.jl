@@ -7,6 +7,7 @@ to 2D image coordinates, with support for units and realistic camera parameters.
 
 using LinearAlgebra
 using Unitful
+import Moshi.Match: @match
 
 # Camera configuration with type parameter for coordinate system
 struct CameraConfig{S}
@@ -20,8 +21,8 @@ end
 
 # Default camera configurations
 const CAMERA_CONFIG_CENTERED = CameraConfig{:centered}(
-    25.0 * u"mm",                    # Focal length
-    3.45 * u"μm" / 1pixel,          # Physical pixel size
+    25.0 * u"mm",                # Focal length
+    3.45 * u"μm" / 1pixel,       # Physical pixel size
     4096 * 1pixel,               # Image width in pixels
     3000 * 1pixel,               # Image height in pixels
     0.0 * 1pixel,                # Principal point x-coordinate (centered)
@@ -88,54 +89,33 @@ offset_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_OFFSET)
 """
 function project(
         cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
-        config::CameraConfig{S}
+        camconfig::CameraConfig{S}
     ) where {S}
     # Transform to camera coordinates
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
 
     # Check if point is in front of camera
-    if ustrip(u"m", cam_pt.x) <= 0
-        throw(DivideError())
-    end
+    cam_pt.x <= 0m && throw(DivideError())
 
     # Extract camera parameters
-    focal_length = config.focal_length
-    pixel_size = config.pixel_size
+    focal_length = camconfig.focal_length
+    pixel_size = camconfig.pixel_size
 
     # Calculate focal length in pixels
-    f_pixels = uconvert(pixel, focal_length / pixel_size)
+    f_pixels = focal_length / pixel_size
 
-    # Apply pinhole projection model
-    # In camera coordinates: X=forward, Y=right, Z=down
-    if S == :centered
-        # For centered coordinates: left (negative Y), up (negative Z)
-        u_centered = -f_pixels * (cam_pt.y / cam_pt.x)  # Left positive
-        v_centered = -f_pixels * (cam_pt.z / cam_pt.x)  # Up positive
+    u_centered = f_pixels * (cam_pt.y / cam_pt.x)  # Left positive
+    v_centered = f_pixels * (cam_pt.z / cam_pt.x)  # Up positive
+    T = typeof(u_centered)
 
-        # Check for valid pixel coordinates
-        if !isfinite(ustrip(u_centered)) || !isfinite(ustrip(v_centered))
-            throw(DomainError("Invalid projection coordinates"))
+    return @match camconfig begin
+        ::CameraConfig{:centered} => ProjectionPoint{T, :centered}(u_centered, v_centered)
+        ::CameraConfig{:offset} => let
+            u = u_centered + camconfig.optical_center_u
+            v = v_centered + camconfig.optical_center_v
+            ProjectionPoint{T, :offset}(u, v)
         end
 
-        return ProjectionPoint{typeof(u_centered), :centered}(u_centered, v_centered)
-
-    elseif S == :offset
-        # For offset coordinates: right (positive Y), down (positive Z)
-        u_centered = f_pixels * (cam_pt.y / cam_pt.x)   # Right positive
-        v_centered = f_pixels * (cam_pt.z / cam_pt.x)   # Down positive
-
-        # Add principal point offset
-        u = u_centered + config.optical_center_u
-        v = v_centered + config.optical_center_v
-
-        # Check for valid pixel coordinates
-        if !isfinite(ustrip(u)) || !isfinite(ustrip(v))
-            throw(DomainError("Invalid projection coordinates"))
-        end
-
-        return ProjectionPoint{typeof(u), :offset}(u, v)
-    else
-        error("Unknown coordinate system: $S")
     end
 end
 

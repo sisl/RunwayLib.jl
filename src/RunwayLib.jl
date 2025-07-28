@@ -48,6 +48,7 @@ export pixel
 include("coordinate_systems/types.jl")
 include("coordinate_systems/transformations.jl")
 include("camera_model/projection.jl")
+include("camera_model/errors.jl")
 include("data_management/runway_database.jl")
 include("pose_estimation/types.jl")
 include("pose_estimation/optimization.jl")
