@@ -3,9 +3,9 @@
 
 Exception thrown when the projection point is behind the camera
 """
-struct PosDefException{T} <: Exception
+struct BehindCameraException{T} <: Exception
     x::T
 end
-function Base.showerror(io::IO, ex::PosDefException)
+function Base.showerror(io::IO, ex::BehindCameraException)
     print(io, "Point to be projected is $(ex.x) behind the camera.")
 end

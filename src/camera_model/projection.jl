@@ -91,28 +91,26 @@ function project(
         cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
         camconfig::CameraConfig{S}
     ) where {S}
-    # Transform to camera coordinates
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
-
-    # Check if point is in front of camera
-    cam_pt.x <= 0m && throw(DivideError())
-
-    # Extract camera parameters
-    focal_length = camconfig.focal_length
-    pixel_size = camconfig.pixel_size
+    cam_pt.x <= 0m && throw(BehindCameraException(cam_pt.x))
 
     # Calculate focal length in pixels
+    (; focal_length, pixel_size) = camconfig
     f_pixels = focal_length / pixel_size
 
-    u_centered = f_pixels * (cam_pt.y / cam_pt.x)  # Left positive
-    v_centered = f_pixels * (cam_pt.z / cam_pt.x)  # Up positive
+    u_centered = f_pixels * (cam_pt.y / cam_pt.x) |> _uconvert(pixel)  # Left positive
+    v_centered = f_pixels * (cam_pt.z / cam_pt.x) |> _uconvert(pixel)  # Up positive
 
     T = typeof(u_centered)
     return @match camconfig begin
-        ::CameraConfig{:centered} => ProjectionPoint{T, :centered}(u_centered, v_centered)
+        # points left and up
+        ::CameraConfig{:centered} => let
+            ProjectionPoint{T, :centered}(u_centered, v_centered)
+        end
+        # points right and down
         ::CameraConfig{:offset} => let
-            u = u_centered + camconfig.optical_center_u
-            v = v_centered + camconfig.optical_center_v
+            u = -u_centered + camconfig.optical_center_u
+            v = -v_centered + camconfig.optical_center_v
             ProjectionPoint{T, :offset}(u, v)
         end
 

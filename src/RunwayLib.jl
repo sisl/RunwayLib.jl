@@ -9,6 +9,7 @@ using Unitful: Length, DimensionlessQuantity
 using Distributions
 using TypedTables
 using SimpleNonlinearSolve
+_uconvert(u) = Base.Fix1(uconvert, u)
 
 # Define custom pixel unit
 @unit pixel "pixel" Pixel 1 false
@@ -44,14 +45,16 @@ export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig
 # Export custom units
 export pixel
 
+export BehindCameraException
+
 # Include submodules
 include("coordinate_systems/types.jl")
 include("coordinate_systems/transformations.jl")
+include("pose_estimation/types.jl")
 include("camera_model/projection.jl")
 include("camera_model/errors.jl")
-include("data_management/runway_database.jl")
-include("pose_estimation/types.jl")
-include("pose_estimation/optimization.jl")
+# include("data_management/runway_database.jl")
+# include("pose_estimation/optimization.jl")
 
 # Export pose estimation entrypoints and types
 export estimate_pose_6dof, estimate_pose_3dof, pose_optimization
