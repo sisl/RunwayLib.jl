@@ -74,11 +74,8 @@ Unified optimization function for pose estimation.
 """
 function pose_optimization_objective(optvar::AbstractVector{T},
             ps::AbstractPoseOptimizationParams) where {T<:Real}
-    # cam_pos = WorldPoint{typeof(optvar[1]m)}(optvar[1:3]m)
-    # cam_pos = WorldPoint(SVector{3}(optvar[1:3]m))
-    # cam_pos = WorldPoint{typeof(optvar[1]m)}(optvar[1]m, optvar[2]m, optvar[3]m)
-    cam_pos = SVector{3}(rand(3))
-    return cam_pos
+    # Extract camera position from optimization variables
+    cam_pos = WorldPoint(optvar[1:3]m)
 
     # Determine camera rotation via pattern matching
     cam_rot = @match ps begin
@@ -94,19 +91,19 @@ function pose_optimization_objective(optvar::AbstractVector{T},
     projected_corners = [project(cam_pos, cam_rot, corner, ps.camconfig)
                          for corner in ps.runway_corners]
 
+    # Compute reprojection errors
+    error_vectors = [
+        SVector{2}((proj.x - obs.x), (proj.y - obs.y))
+        for (proj, obs) in zip(projected_corners, ps.observed_corners)
+    ]
+    errors = reduce(vcat, error_vectors)
 
-    # # Compute reprojection errors
-    # error_vectors = [
-    #     (proj - obs)
-    #     for (proj, obs) in zip(projected_corners, ps.observed_corners)
-    # ]
-    # errors = reduce(vcat, SVector{2}.(error_vectors))
-
-    # # Apply noise weighting via Cholesky decomposition
-    # U = ps.chol_upper*1pixel
-    # L_inv = inv(U')
-    # return ustrip.(NoUnits, L_inv * errors)
-    # return ustrip.(NoUnits, errors/pixel)
+    # Apply noise weighting via Cholesky decomposition
+    U = ps.chol_upper * 1pixel
+    L_inv = inv(U')
+    weighted_errors = L_inv * errors
+    
+    return ustrip.(NoUnits, weighted_errors)
 end
 
 const POSEOPTFN = NonlinearFunction{false}(pose_optimization_objective)
