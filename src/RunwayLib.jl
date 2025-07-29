@@ -59,7 +59,7 @@ include("pose_estimation/optimization.jl")
 include("pose_estimation/errors.jl")
 
 # Export pose estimation entrypoints and types
-export estimate_pose_6dof, estimate_pose_3dof, pose_optimization
+export estimatepose6dof, estimatepose3dof, pose_optimization
 export PoseOptimizationParams6DOF, PoseOptimizationParams3DOF
 
 function compute_raim_statistic(pose_estimate, runway_spec, corners, noise_model)

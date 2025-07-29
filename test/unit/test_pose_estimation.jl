@@ -20,75 +20,41 @@ using StaticArrays
         @test result.rot ≈ true_rot atol=rot_tol
     end
 
-    @testset "6DOF Pose Estimation - $config_name" for (config, config_name) in [
+    @testset "Pose Estimation - $config_name" for (config, config_name) in [
         (CAMERA_CONFIG_CENTERED, "Centered"),
         (CAMERA_CONFIG_OFFSET, "Offset")
     ]
         # Ground truth airplane pose
-        true_pos = WorldPoint(-500.0m, 10.0m, 100.0m)  # 500m before runway, 10m right, 100m high
-        true_rot = RotZYX(roll = 0.02, pitch = 0.1, yaw = -0.01)  # Small attitude angles
+        true_pos = WorldPoint(-500.0m, 10.0m, 100.0m)
+        true_rot = RotZYX(roll = 0.02, pitch = 0.1, yaw = -0.01)
 
         # Generate perfect projections
         true_projections = [project(true_pos, true_rot, corner, config) for corner in runway_corners]
 
-        # Create noisy initial guess (significantly off from truth)
-        noisy_pos_guess = SA[
-            true_pos.x + 100.0m,   # 100m error in x
-            true_pos.y - 20.0m,    # 20m error in y  
-            true_pos.z + 30.0m,    # 30m error in z
-        ]
-        noisy_rot_guess = SA[
-            true_rot.theta1 + 0.05,  # ~3° error in roll
-            true_rot.theta2 - 0.08,  # ~5° error in pitch
-            true_rot.theta3 + 0.03,  # ~2° error in yaw
-        ]rad
+        # Create noisy initial guesses
+        noisy_pos_guess = SA[true_pos.x + 100.0m, true_pos.y - 20.0m, true_pos.z + 30.0m]
+        noisy_rot_guess = SA[true_rot.theta1 + 0.05, true_rot.theta2 - 0.08, true_rot.theta3 + 0.03]rad
 
-        # Run 6DOF estimation
-        result = estimate_pose_6dof(
-            runway_corners,
-            true_projections, 
-            config;
-            initial_guess_pos = noisy_pos_guess,
-            initial_guess_rot = noisy_rot_guess
-        )
+        @testset "6DOF Estimation" begin
+            result = estimatepose6dof(
+                runway_corners, true_projections, config;
+                initial_guess_pos = noisy_pos_guess,
+                initial_guess_rot = noisy_rot_guess
+            )
+            test_pose_accuracy(result, true_pos, true_rot)
+        end
 
-        # Verify convergence to true pose
-        test_pose_accuracy(result, true_pos, true_rot)
+        @testset "3DOF Estimation" begin
+            result = estimatepose3dof(
+                runway_corners, true_projections, true_rot, config;
+                initial_guess_pos = noisy_pos_guess
+            )
+            @test norm(result.pos - true_pos) < 1e-6m
+            @test result.rot ≈ true_rot
+        end
     end
 
-    @testset "3DOF Pose Estimation - $config_name" for (config, config_name) in [
-        (CAMERA_CONFIG_CENTERED, "Centered"),
-        (CAMERA_CONFIG_OFFSET, "Offset")
-    ]
-        # Ground truth airplane pose
-        true_pos = WorldPoint(-800.0m, -5.0m, 150.0m)  # 800m before runway, 5m left, 150m high
-        known_rot = RotZYX(roll = -0.01, pitch = 0.08, yaw = 0.02)  # Known attitude
-
-        # Generate perfect projections  
-        true_projections = [project(true_pos, known_rot, corner, config) for corner in runway_corners]
-
-        # Create noisy initial position guess
-        noisy_pos_guess = SA[
-            true_pos.x - 150.0m,   # 150m error in x
-            true_pos.y + 25.0m,    # 25m error in y
-            true_pos.z - 40.0m,    # 40m error in z
-        ]
-
-        # Run 3DOF estimation with known attitude
-        result = estimate_pose_3dof(
-            runway_corners,
-            true_projections,
-            known_rot,
-            config;
-            initial_guess_pos = noisy_pos_guess
-        )
-
-        # Verify convergence to true position and attitude matches exactly
-        @test norm(result.pos - true_pos) < 1e-6m
-        @test result.rot ≈ known_rot
-    end
-
-    @testset "Multiple Test Cases - 6DOF" begin
+    @testset "Multiple Test Cases" begin
         # Test multiple ground truth scenarios
         test_cases = [
             (pos = WorldPoint(-300.0m, 0.0m, 80.0m), rot = RotZYX(0.0, 0.05, 0.0)),
@@ -104,38 +70,22 @@ using StaticArrays
                 noisy_pos = SA[case.pos.x + 200.0m, case.pos.y - 50.0m, case.pos.z + 80.0m]
                 noisy_rot = SA[case.rot.theta1 + 0.1, case.rot.theta2 - 0.15, case.rot.theta3 + 0.08]rad
                 
-                result = estimate_pose_6dof(
-                    runway_corners, true_projections, CAMERA_CONFIG_OFFSET;
-                    initial_guess_pos = noisy_pos, initial_guess_rot = noisy_rot
-                )
+                @testset "6DOF" begin
+                    result = estimatepose6dof(
+                        runway_corners, true_projections, CAMERA_CONFIG_OFFSET;
+                        initial_guess_pos = noisy_pos, initial_guess_rot = noisy_rot
+                    )
+                    test_pose_accuracy(result, case.pos, case.rot)
+                end
 
-                test_pose_accuracy(result, case.pos, case.rot)
-            end
-        end
-    end
-
-    @testset "Multiple Test Cases - 3DOF" begin
-        # Test multiple ground truth scenarios
-        test_cases = [
-            (pos = WorldPoint(-400.0m, 5.0m, 90.0m), rot = RotZYX(0.01, 0.06, -0.005)),
-            (pos = WorldPoint(-1000.0m, -20.0m, 180.0m), rot = RotZYX(-0.02, 0.11, 0.015)),
-            (pos = WorldPoint(-750.0m, 12.0m, 140.0m), rot = RotZYX(0.005, 0.09, -0.01)),
-        ]
-
-        for (i, case) in enumerate(test_cases)
-            @testset "Case $i" begin
-                true_projections = [project(case.pos, case.rot, corner, CAMERA_CONFIG_CENTERED) for corner in runway_corners]
-                
-                # Large initial position errors
-                noisy_pos = SA[case.pos.x - 180.0m, case.pos.y + 35.0m, case.pos.z - 60.0m]
-                
-                result = estimate_pose_3dof(
-                    runway_corners, true_projections, case.rot, CAMERA_CONFIG_CENTERED;
-                    initial_guess_pos = noisy_pos
-                )
-
-                @test norm(result.pos - case.pos) < 1e-6m
-                @test result.rot ≈ case.rot
+                @testset "3DOF" begin
+                    result = estimatepose3dof(
+                        runway_corners, true_projections, case.rot, CAMERA_CONFIG_OFFSET;
+                        initial_guess_pos = noisy_pos
+                    )
+                    @test norm(result.pos - case.pos) < 1e-6m
+                    @test result.rot ≈ case.rot
+                end
             end
         end
     end

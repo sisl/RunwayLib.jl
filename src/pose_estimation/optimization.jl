@@ -185,3 +185,4 @@ function estimatepose3dof(
     rot = known_attitude
     return (; pos, rot)
 end
+
