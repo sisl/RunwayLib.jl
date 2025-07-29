@@ -11,6 +11,9 @@ using StaticArrays
 import StaticArrays: similar_type
 using Unitful
 
+WithDims(q::Quantity)  = Quantity{T, dimension(q), U} where {T<:Real, U<:Unitful.Unitlike}
+WithDims(u::Unitful.Units)     = Quantity{T, dimension(u), U} where {T<:Real, U<:Unitful.Unitlike}
+
 """
     WorldPoint{T} <: FieldVector{3, T}
 
@@ -130,8 +133,11 @@ end
 
 # Convenience constructors for common use cases
 # WorldPoint(x, y, z) = WorldPoint{typeof(x)}(x, y, z)
+WorldPoint(xs::AbstractVector{T}) = WorldPoint{T}(xs)
 # CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
-ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
+CameraPoint(xs::AbstractVector{T}) = CameraPoint{T}(xs)
+# ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
+ProjectionPoint(xy::AbstractVector{T}) where T = ProjectionPoint{T, :offset}(xy)
 ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x, y)  # Default to offset coordinates
 ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
 

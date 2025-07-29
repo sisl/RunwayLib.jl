@@ -88,9 +88,9 @@ offset_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_OFFSET)
 ```
 """
 function project(
-        cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint,
+        cam_pos::WorldPoint{T}, cam_rot::RotZYX, world_pt::WorldPoint{T′},
         camconfig::CameraConfig{S}
-    ) where {S}
+    ) where {T, T′, S}
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
     cam_pt.x <= 0m && throw(BehindCameraException(cam_pt.x))
 
@@ -101,17 +101,17 @@ function project(
     u_centered = f_pixels * (cam_pt.y / cam_pt.x) |> _uconvert(pixel)  # Left positive
     v_centered = f_pixels * (cam_pt.z / cam_pt.x) |> _uconvert(pixel)  # Up positive
 
-    T = typeof(u_centered)
+    T′′ = typeof(u_centered)
     return @match camconfig begin
         # points left and up
         ::CameraConfig{:centered} => let
-            ProjectionPoint{T, :centered}(u_centered, v_centered)
+            ProjectionPoint{T′′, :centered}(u_centered, v_centered)
         end
         # points right and down
         ::CameraConfig{:offset} => let
             u = -u_centered + camconfig.optical_center_u
             v = -v_centered + camconfig.optical_center_v
-            ProjectionPoint{T, :offset}(u, v)
+            ProjectionPoint{T′′, :offset}(u, v)
         end
 
     end
@@ -119,9 +119,9 @@ end
 
 # Backward compatibility method
 function project(
-        cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint;
+        cam_pos::WorldPoint{T}, cam_rot::RotZYX, world_pt::WorldPoint{T′};
         config = CAMERA_CONFIG
-    )
+    ) where {T, T′}
     return project(cam_pos, cam_rot, world_pt, config)
 end
 
