@@ -3,330 +3,140 @@ using RunwayLib
 using Rotations
 using LinearAlgebra
 using Unitful, Unitful.DefaultSymbols
-using Distributions
 using StaticArrays
 
 @testset "Pose Estimation" begin
-    @testset "PoseEstimate Structure" begin
-        # Test pose estimate construction with units
-        position = WorldPoint(1000.0m, 50.0m, 100.0m)
-        attitude = RotZYX(roll = 0.1rad, pitch = 0.05rad, yaw = 0.02rad)
-        uncertainty = MvNormal(zeros(6), I(6))
-        residual_norm = 2.5 * 1pixel
-        converged = true
+    # Define standard runway corners (4 points forming a rectangle)
+    runway_corners = SA[
+        WorldPoint(0.0m, 25.0m, 0.0m),      # near left  
+        WorldPoint(0.0m, -25.0m, 0.0m),     # near right
+        WorldPoint(1000.0m, 25.0m, 0.0m),   # far left
+        WorldPoint(1000.0m, -25.0m, 0.0m),  # far right
+    ]
 
-        pose_est = PoseEstimate(position, attitude, uncertainty, residual_norm, converged)
-
-        @test pose_est.position == position
-        @test pose_est.attitude == attitude
-        @test pose_est.uncertainty == uncertainty
-        @test pose_est.residual_norm == residual_norm
-        @test pose_est.converged == converged
-
-        # Test position is reasonable for aircraft
-        @test position.x > -500.0m     # Not too far behind threshold
-        @test position.x < 2000.0m     # Not too far ahead
-        @test abs(position.y) < 200.0m # Reasonable lateral deviation
-        @test position.z > 0.0m        # Above ground
-        @test position.z < 500.0m      # Below typical approach altitude
+    # Helper function to test pose accuracy
+    function test_pose_accuracy(result, true_pos, true_rot; pos_tol=1e-6m, rot_tol=1e-8)
+        @test norm(result.pos - true_pos) < pos_tol
+        @test result.rot ≈ true_rot atol=rot_tol
     end
 
-    @testset "6-DOF Pose Estimation" begin
-        # Create simple runway with units
-        runway_spec = RunwaySpec("TEST_01", 1000.0m, 50.0m, 0.0m, 0.0 * u"°")
+    @testset "6DOF Pose Estimation - $config_name" for (config, config_name) in [
+        (CAMERA_CONFIG_CENTERED, "Centered"),
+        (CAMERA_CONFIG_OFFSET, "Offset")
+    ]
+        # Ground truth airplane pose
+        true_pos = WorldPoint(-500.0m, 10.0m, 100.0m)  # 500m before runway, 10m right, 100m high
+        true_rot = RotZYX(roll = 0.02, pitch = 0.1, yaw = -0.01)  # Small attitude angles
 
-        # Define runway corners in world coordinates with units using StaticArrays
-        runway_corners = SA[
-            WorldPoint(0.0m, 25.0m, 0.0m),      # near left
-            WorldPoint(0.0m, -25.0m, 0.0m),     # near right
-            WorldPoint(1000.0m, 25.0m, 0.0m),   # far left
-            WorldPoint(1000.0m, -25.0m, 0.0m),   # far right
+        # Generate perfect projections
+        true_projections = [project(true_pos, true_rot, corner, config) for corner in runway_corners]
+
+        # Create noisy initial guess (significantly off from truth)
+        noisy_pos_guess = SA[
+            true_pos.x + 100.0m,   # 100m error in x
+            true_pos.y - 20.0m,    # 20m error in y  
+            true_pos.z + 30.0m,    # 30m error in z
+        ]
+        noisy_rot_guess = SA[
+            true_rot.theta1 + 0.05,  # ~3° error in roll
+            true_rot.theta2 - 0.08,  # ~5° error in pitch
+            true_rot.theta3 + 0.03,  # ~2° error in yaw
+        ]rad
+
+        # Run 6DOF estimation
+        result = estimate_pose_6dof(
+            runway_corners,
+            true_projections, 
+            config;
+            initial_guess_pos = noisy_pos_guess,
+            initial_guess_rot = noisy_rot_guess
+        )
+
+        # Verify convergence to true pose
+        test_pose_accuracy(result, true_pos, true_rot)
+    end
+
+    @testset "3DOF Pose Estimation - $config_name" for (config, config_name) in [
+        (CAMERA_CONFIG_CENTERED, "Centered"),
+        (CAMERA_CONFIG_OFFSET, "Offset")
+    ]
+        # Ground truth airplane pose
+        true_pos = WorldPoint(-800.0m, -5.0m, 150.0m)  # 800m before runway, 5m left, 150m high
+        known_rot = RotZYX(roll = -0.01, pitch = 0.08, yaw = 0.02)  # Known attitude
+
+        # Generate perfect projections  
+        true_projections = [project(true_pos, known_rot, corner, config) for corner in runway_corners]
+
+        # Create noisy initial position guess
+        noisy_pos_guess = SA[
+            true_pos.x - 150.0m,   # 150m error in x
+            true_pos.y + 25.0m,    # 25m error in y
+            true_pos.z - 40.0m,    # 40m error in z
         ]
 
-        # Simulate camera position and attitude with units
-        true_cam_pos = WorldPoint(-500.0m, 0.0m, 100.0m)  # 500m before runway, 100m high
-        true_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.0)  # Slight pitch down (≈5.7°)
+        # Run 3DOF estimation with known attitude
+        result = estimate_pose_3dof(
+            runway_corners,
+            true_projections,
+            known_rot,
+            config;
+            initial_guess_pos = noisy_pos_guess
+        )
 
-        # Project runway corners to image using StaticArrays
-        projected_corners = [project(true_cam_pos, true_cam_rot, corner) for corner in runway_corners]
-
-        # Test that projection produces finite values
-        @test all(isfinite(ustrip(corner.x)) && isfinite(ustrip(corner.y)) for corner in projected_corners)
-
-        # Test basic pose estimation setup with units using StaticArrays
-        initial_guess_pos = SA[-400.0m, 0.0m, 90.0m]  # Close to true position
-        initial_guess_rot = SA[0.0, 0.0, 0.0]  # Close to true attitude (radians)
-
-        # Test initial guess is reasonable
-        @test abs(initial_guess_pos[1] - true_cam_pos.x) < 200m  # Within 200m
-        @test abs(initial_guess_pos[2] - true_cam_pos.y) < 50m   # Within 50m
-        @test abs(initial_guess_pos[3] - true_cam_pos.z) < 50m   # Within 50m
-
-        @test length(runway_corners) == 4  # Standard runway has 4 corners
-        @test length(projected_corners) == 4
+        # Verify convergence to true position and attitude matches exactly
+        @test norm(result.pos - true_pos) < 1e-6m
+        @test result.rot ≈ known_rot
     end
 
-    @testset "3-DOF Position Estimation" begin
-        # Test position-only estimation with known attitude and units using StaticArrays
-        runway_corners = SA[
-            WorldPoint(0.0m, 25.0m, 0.0m),
-            WorldPoint(0.0m, -25.0m, 0.0m),
-            WorldPoint(1000.0m, 25.0m, 0.0m),
-            WorldPoint(1000.0m, -25.0m, 0.0m),
-        ]
-
-        true_cam_pos = WorldPoint(-500.0m, 10.0m, 100.0m)
-        known_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.05)  # Known attitude
-
-        # Test attitude angles are reasonable
-        @test abs(known_cam_rot.theta1) < π / 6  # Roll within ±30°
-        @test abs(known_cam_rot.theta2) < π / 6  # Pitch within ±30°
-        @test abs(known_cam_rot.theta3) < π / 6  # Yaw within ±30°
-
-        projected_corners = [project(true_cam_pos, known_cam_rot, corner) for corner in runway_corners]
-
-        # Test 3-DOF estimation setup with units using StaticArrays
-        initial_pos_guess = SA[-450.0m, 5.0m, 95.0m]  # Close to true position
-
-        # Test initial guess is close to true position
-        @test abs(initial_pos_guess[1] - true_cam_pos.x) < 100m
-        @test abs(initial_pos_guess[2] - true_cam_pos.y) < 10m
-        @test abs(initial_pos_guess[3] - true_cam_pos.z) < 10m
-
-        @test length(initial_pos_guess) == 3  # Only position parameters
-        @test all(isfinite(ustrip(corner.x)) && isfinite(ustrip(corner.y)) for corner in projected_corners)
-    end
-
-    @testset "Initial Guess Generation" begin
-        # Test reasonable initial guess generation with units
-        runway_spec = RunwaySpec("TEST_01", 1000.0m, 50.0m, 0.0m, 0.0 * u"°")
-
-        # For approach scenario, aircraft should be:
-        # - Behind runway (negative along-track)
-        # - Near runway centerline (small cross-track)
-        # - Above ground (positive height)
-        # - Small attitude angles
-
-        initial_pos = SA[-800.0m, 0.0m, 150.0m]  # Typical approach position
-        initial_rot = SA[0.0, 0.05, 0.0]                  # Slight pitch down for approach (radians)
-
-        @test initial_pos[1] < 0m  # Behind runway
-        @test abs(initial_pos[2]) < runway_spec.width_m  # Near centerline
-        @test initial_pos[3] > 0m  # Above ground
-        @test all(abs.(initial_rot) .< 0.5)  # Reasonable attitude angles (< ~30 deg)
-
-        # Test typical approach parameters
-        approach_distance = abs(initial_pos[1])
-        approach_height = initial_pos[3]
-        glide_angle = atan(ustrip(approach_height) / ustrip(approach_distance))
-
-        @test 500m <= approach_distance <= 2000m  # Typical approach distances
-        @test 50m <= approach_height <= 500m      # Typical approach heights
-        @test 0.02 <= glide_angle <= 0.2               # Typical glide angles (1-8 degrees)
-    end
-
-    @testset "Pose Estimation with Random Poses" begin
-        # Define standard runway corners
-        runway_corners = SA[
-            WorldPoint(0.0m, 25.0m, 0.0m),      # near left
-            WorldPoint(0.0m, -25.0m, 0.0m),     # near right
-            WorldPoint(3000.0m, 25.0m, 0.0m),   # far left
-            WorldPoint(3000.0m, -25.0m, 0.0m),   # far right
-        ]
-
-        # Test both 3-DOF and 6-DOF estimation modes
+    @testset "Multiple Test Cases - 6DOF" begin
+        # Test multiple ground truth scenarios
         test_cases = [
-            (mode = "6-DOF", estimate_attitude = true, noise_std = 2.0, pos_tol = [20.0, 20.0, 20.0], att_tol = 0.1),
-            (mode = "3-DOF", estimate_attitude = false, noise_std = 1.5, pos_tol = [50.0, 15.0, 15.0], att_tol = 1.0e-10),
+            (pos = WorldPoint(-300.0m, 0.0m, 80.0m), rot = RotZYX(0.0, 0.05, 0.0)),
+            (pos = WorldPoint(-1200.0m, 30.0m, 200.0m), rot = RotZYX(-0.03, 0.12, 0.02)),
+            (pos = WorldPoint(-600.0m, -15.0m, 120.0m), rot = RotZYX(0.01, 0.08, -0.01)),
         ]
 
-        for test_case in test_cases
-            @testset "$(test_case.mode) Estimation" begin
-                # Test multiple random poses
-                for i in 1:5
-                    # Generate random true pose within reasonable bounds
-                    if test_case.mode == "6-DOF"
-                        true_x = -3500.0m + 1500.0m * rand()  # -2000 to -500 meters
-                        true_y = -100.0m + 200.0m * rand()    # -100 to +100 meters
-                        true_z = 50.0m + 400.0m * rand()      # 50 to 450 meters
-                    else # 3-DOF
-                        true_x = -3500.0m + 1000.0m * rand()  # -1500 to -500 meters
-                        true_y = -80.0m + 160.0m * rand()     # -80 to +80 meters
-                        true_z = 60.0m + 300.0m * rand()      # 60 to 360 meters
-                    end
+        for (i, case) in enumerate(test_cases)
+            @testset "Case $i" begin
+                true_projections = [project(case.pos, case.rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
+                
+                # Large initial errors
+                noisy_pos = SA[case.pos.x + 200.0m, case.pos.y - 50.0m, case.pos.z + 80.0m]
+                noisy_rot = SA[case.rot.theta1 + 0.1, case.rot.theta2 - 0.15, case.rot.theta3 + 0.08]rad
+                
+                result = estimate_pose_6dof(
+                    runway_corners, true_projections, CAMERA_CONFIG_OFFSET;
+                    initial_guess_pos = noisy_pos, initial_guess_rot = noisy_rot
+                )
 
-                    true_roll = 3.0° * rand()
-                    true_pitch = 3.0° * rand()
-                    true_yaw = 3.0° * rand()
-
-                    true_pos = WorldPoint(true_x, true_y, true_z)
-                    true_rot = RotZYX(roll = true_roll, pitch = true_pitch, yaw = true_yaw)
-
-                    # Project runway corners to get true observations
-                    true_projections = [
-                        project(true_pos, true_rot, corner, CAMERA_CONFIG_CENTERED)
-                            for corner in runway_corners
-                    ]
-
-                    # Test that optimization function returns near-zero loss for true parameters
-                    noise_model = UncorrGaussianNoiseModel([Normal(0.0, test_case.noise_std) for _ in 1:8])
-                    if test_case.estimate_attitude
-                        opt_params = PoseOptimizationParams6DOF(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model)
-                        true_params = [
-                            ustrip.(m, SA[true_x; true_y; true_z]);
-                            ustrip.(rad, SA[true_roll, true_pitch, true_yaw])
-                        ]
-                        loss_at_true = pose_optimization(true_params, opt_params)
-                        @test norm(loss_at_true) < eps(eltype(true_params))
-                    else
-                        opt_params = PoseOptimizationParams3DOF(runway_corners, true_projections, CAMERA_CONFIG_CENTERED, noise_model, true_rot)
-                        true_params = [true_x, true_y, true_z]
-                        loss_at_true = pose_optimization(true_params, opt_params)
-                        @test norm(loss_at_true) < 1.0e-10
-                    end
-
-                    # Add noise to observations
-                    noisy_observations = [
-                        proj + randn(2) * 0.1pixel
-                            for proj in true_projections
-                    ]
-                    noisy_observations_flat = reduce(vcat, SVector.(noisy_observations))
-
-                    # Create noise model matching the added noise
-                    noise_dists = if test_case.estimate_attitude
-                        [Normal(0.0, test_case.noise_std) for _ in eachindex(noisy_observations_flat)]
-                    else
-                        [Normal(0.0, test_case.noise_std) for _ in eachindex(noisy_observations_flat)]
-                    end
-                    noise_model = UncorrGaussianNoiseModel(noise_dists)
-
-                    # Initial guess with some error
-                    if test_case.estimate_attitude
-                        initial_guess_pos = [
-                            true_x + randn() * 100.0m,    # ±100m error in position
-                            true_y + randn() * 50.0m,     # ±50m error in position
-                            true_z + randn() * 50.0m,     # ±50m error in position
-                        ]
-                        initial_guess_rot = [
-                            true_roll + randn() * 3°,   # ±0.1 rad error in orientation
-                            true_pitch + randn() * 3°,  # ±0.1 rad error in orientation
-                            true_yaw + randn() * 3°,     # ±0.1 rad error in orientation
-                        ]
-
-                        # Run 6-DOF pose estimation
-                        pose_est = estimate_pose_6dof(
-                            runway_corners, noisy_observations,
-                            CAMERA_CONFIG_CENTERED;
-                            noise_model, initial_guess_pos, initial_guess_rot,
-                        )
-                    else
-                        initial_guess_pos = [
-                            true_x + randn() * 80.0m,   # ±80m error
-                            true_y + randn() * 30.0m,   # ±30m error
-                            true_z + randn() * 40.0m,    # ±40m error in position
-                        ]
-
-                        # Run 3-DOF position estimation
-                        pose_est = estimate_pose_3dof(
-                            runway_corners, noisy_observations,
-                            true_rot, CAMERA_CONFIG_CENTERED;
-                            noise_model = noise_model,
-                            initial_guess_pos = initial_guess_pos
-                        )
-                    end
-
-                    # Verify convergence
-                    @test pose_est.converged
-
-                    # Check position accuracy
-                    pos_error_x = abs(ustrip(pose_est.position.x - true_pos.x))
-                    pos_error_y = abs(ustrip(pose_est.position.y - true_pos.y))
-                    pos_error_z = abs(ustrip(pose_est.position.z - true_pos.z))
-
-                    @test pos_error_x < test_case.pos_tol[1]
-                    @test pos_error_y < test_case.pos_tol[2]
-                    @test pos_error_z < test_case.pos_tol[3]
-
-                    # Check attitude accuracy
-                    if test_case.estimate_attitude
-                        # For 6-DOF, check estimated attitude vs true attitude
-                        rot_error_roll = abs(pose_est.attitude.theta1 - true_rot.theta1)
-                        rot_error_pitch = abs(pose_est.attitude.theta2 - true_rot.theta2)
-                        rot_error_yaw = abs(pose_est.attitude.theta3 - true_rot.theta3)
-
-                        @test rot_error_roll < test_case.att_tol
-                        @test rot_error_pitch < test_case.att_tol
-                        @test rot_error_yaw < test_case.att_tol
-                    else
-                        # For 3-DOF, check that attitude matches the known attitude exactly
-                        @test pose_est.attitude.theta1 ≈ true_rot.theta1 atol = test_case.att_tol
-                        @test pose_est.attitude.theta2 ≈ true_rot.theta2 atol = test_case.att_tol
-                        @test pose_est.attitude.theta3 ≈ true_rot.theta3 atol = test_case.att_tol
-                    end
-
-                    # Check residual is reasonable
-                    expected_residual = test_case.estimate_attitude ? 10.0 : 8.0
-                    @test ustrip(pose_est.residual_norm) < expected_residual
-                end
+                test_pose_accuracy(result, case.pos, case.rot)
             end
         end
     end
 
-    #=
-    @testset "Pose Estimation Edge Cases" begin
-        runway_corners = SA[
-            WorldPoint(0.0m, 25.0m, 0.0m),
-            WorldPoint(0.0m, -25.0m, 0.0m),
-            WorldPoint(3000.0m, 25.0m, 0.0m),
-            WorldPoint(3000.0m, -25.0m, 0.0m),
+    @testset "Multiple Test Cases - 3DOF" begin
+        # Test multiple ground truth scenarios
+        test_cases = [
+            (pos = WorldPoint(-400.0m, 5.0m, 90.0m), rot = RotZYX(0.01, 0.06, -0.005)),
+            (pos = WorldPoint(-1000.0m, -20.0m, 180.0m), rot = RotZYX(-0.02, 0.11, 0.015)),
+            (pos = WorldPoint(-750.0m, 12.0m, 140.0m), rot = RotZYX(0.005, 0.09, -0.01)),
         ]
 
-        # Test with very small noise (should converge to exact solution)
-        true_pos = WorldPoint(-2800.0m, 20.0m, 220.0m)
-        true_rot = RotZYX(roll = 0.02, pitch = 0.08, yaw = -0.03)
+        for (i, case) in enumerate(test_cases)
+            @testset "Case $i" begin
+                true_projections = [project(case.pos, case.rot, corner, CAMERA_CONFIG_CENTERED) for corner in runway_corners]
+                
+                # Large initial position errors
+                noisy_pos = SA[case.pos.x - 180.0m, case.pos.y + 35.0m, case.pos.z - 60.0m]
+                
+                result = estimate_pose_3dof(
+                    runway_corners, true_projections, case.rot, CAMERA_CONFIG_CENTERED;
+                    initial_guess_pos = noisy_pos
+                )
 
-        true_projections = [
-            project(true_pos, true_rot, corner, CAMERA_CONFIG_CENTERED)
-                for corner in runway_corners
-        ]
-
-        # Add tiny amount of noise
-        tiny_noise_observations = [
-            ProjectionPoint(
-                    :offset,
-                    proj.x + randn() * 0.01pixel,
-                    proj.y + randn() * 0.01pixel
-                ) for proj in true_projections
-        ]
-
-        noise_model = UncorrGaussianNoiseModel([Normal(0.0, 1.0) for _ in 1:8])
-
-
-        optimization_config = RunwayLib.OptimizationConfig(
-            10_000,           # max_iterations
-            1.0e-12,         # convergence_tolerance
-            1.0e-12,          # step_tolerance
-            1.0e-8           # gradient_tolerance
-        )
-
-        pose_est = estimate_pose_6dof(
-            runway_corners, tiny_noise_observations, CAMERA_CONFIG_OFFSET;
-            noise_model = noise_model,
-            initial_guess_pos = [true_pos.x, true_pos.y, true_pos.z],
-            initial_guess_rot = [true_rot.theta1, true_rot.theta2, true_rot.theta3] .* rad,
-            optimization_config
-        )
-        display(pose_est.position - true_pos)
-        display(Rotations.params(pose_est.attitude) - Rotations.params(true_rot))
-
-        @test pose_est.converged
-        @test abs(ustrip(u"m", (pose_est.position - true_pos).x)) < 1.0  # Very accurate
-        @test abs(ustrip(u"m", (pose_est.position - true_pos).y)) < 1.0
-        @test abs(ustrip(u"m", (pose_est.position - true_pos).z)) < 1.0
-        @test abs(Rotations.params(pose_est.attitude)[1] - Rotations.params(true_rot)[1]) < deg2rad(3.0)
-        @test abs(Rotations.params(pose_est.attitude)[2] - Rotations.params(true_rot)[2]) < deg2rad(3.0)
-        @test abs(Rotations.params(pose_est.attitude)[3] - Rotations.params(true_rot)[3]) < deg2rad(3.0)
-        @test ustrip(pose_est.residual_norm) < 1.0  # Very small residual
+                @test norm(result.pos - case.pos) < 1e-6m
+                @test result.rot ≈ case.rot
+            end
+        end
     end
-    =#
 end
