@@ -51,6 +51,13 @@ struct PoseOptimizationParams3DOF{T, T′, T′′, S,
     known_attitude::A
 end
 
+struct Foo{T} <: FieldVector{3, T}
+    x::T  # Along-track distance
+    y::T  # Cross-track distance
+    z::T  # Height above runway
+end
+
+
 """
     pose_optimization(pose_params, ps)
 
@@ -65,9 +72,13 @@ Unified optimization function for pose estimation.
 # Returns
 - Weighted reprojection error vector
 """
-function pose_optimization_objective(optvar::AbstractVector{<:Real},
-            ps::AbstractPoseOptimizationParams)
-    cam_pos = WorldPoint(optvar[1:3]m)
+function pose_optimization_objective(optvar::AbstractVector{T},
+            ps::AbstractPoseOptimizationParams) where {T<:Real}
+    # cam_pos = WorldPoint{typeof(optvar[1]m)}(optvar[1:3]m)
+    # cam_pos = WorldPoint(SVector{3}(optvar[1:3]m))
+    # cam_pos = WorldPoint{typeof(optvar[1]m)}(optvar[1]m, optvar[2]m, optvar[3]m)
+    cam_pos = SVector{3}(rand(3))
+    return cam_pos
 
     # Determine camera rotation via pattern matching
     cam_rot = @match ps begin
@@ -83,17 +94,18 @@ function pose_optimization_objective(optvar::AbstractVector{<:Real},
     projected_corners = [project(cam_pos, cam_rot, corner, ps.camconfig)
                          for corner in ps.runway_corners]
 
-    # Compute reprojection errors
-    error_vectors = [
-        (proj - obs)
-        for (proj, obs) in zip(projected_corners, ps.observed_corners)
-    ]
-    errors = reduce(vcat, SVector{2}.(error_vectors))
 
-    # Apply noise weighting via Cholesky decomposition
-    U = ps.chol_upper*1pixel
-    L_inv = inv(U')
-    return ustrip.(NoUnits, L_inv * errors)
+    # # Compute reprojection errors
+    # error_vectors = [
+    #     (proj - obs)
+    #     for (proj, obs) in zip(projected_corners, ps.observed_corners)
+    # ]
+    # errors = reduce(vcat, SVector{2}.(error_vectors))
+
+    # # Apply noise weighting via Cholesky decomposition
+    # U = ps.chol_upper*1pixel
+    # L_inv = inv(U')
+    # return ustrip.(NoUnits, L_inv * errors)
     # return ustrip.(NoUnits, errors/pixel)
 end
 
