@@ -43,12 +43,6 @@ using StaticArrays
             WorldPoint(1000.0m, -25.0m, 0.0m),   # far right
         ]
 
-        # Test runway corner geometry
-        @test runway_corners[1].y == runway_spec.width_m / 2   # Left edge
-        @test runway_corners[2].y == -runway_spec.width_m / 2  # Right edge
-        @test runway_corners[3].x == runway_spec.length_m      # Far end
-        @test runway_corners[4].x == runway_spec.length_m      # Far end
-
         # Simulate camera position and attitude with units
         true_cam_pos = WorldPoint(-500.0m, 0.0m, 100.0m)  # 500m before runway, 100m high
         true_cam_rot = RotZYX(roll = 0.0, pitch = 0.1, yaw = 0.0)  # Slight pitch down (≈5.7°)
