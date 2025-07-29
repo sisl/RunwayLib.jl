@@ -88,8 +88,12 @@ function pose_optimization_objective(optvar::AbstractVector{T},
     end
 
     # Project runway corners to image coordinates
-    projected_corners = [project(cam_pos, cam_rot, corner, ps.camconfig)
-                         for corner in ps.runway_corners]
+    # WARNING: Don't remove this `let` statement without checking JET tests for type inference.
+    # For some reason it's necessary for type inference to work.
+    projected_corners = let cam_pos = cam_pos
+        [project(cam_pos, cam_rot, corner, ps.camconfig)
+                            for corner in ps.runway_corners]
+    end
 
     # Compute reprojection errors
     error_vectors = [
