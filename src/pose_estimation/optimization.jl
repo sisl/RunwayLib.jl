@@ -165,23 +165,9 @@ function estimatepose6dof(
         runway_corners, observed_corners,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U))
 
-    # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
-    # prob = remake(PROB6DOF; u₀, p=ps)
-    # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, SVector{6}(rand(6)), ps)
-    # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, [-1000.0; 0; 100; 0; 0; 0], ps)
-    # ALG = TrustRegion(; autodiff=AD, linsolve=LS.CholeskyFactorization())
-    # ALG = LevenbergMarquardt(; autodiff=AD, linsolve=LS.CholeskyFactorization())
-    # ALG = LevenbergMarquardt(; autodiff=AD, linsolve=LS.RFLUFactorization(; thread=Val(false)))
-    # CACHE6DOF = init(prob, ALG)
     reinit!(CACHE6DOF, collect(u₀); p=ps)
     solve!(CACHE6DOF)
     sol = (; u=CACHE6DOF.u, retcode=CACHE6DOF.retcode)
-
-    # termination_condition = AbsNormSafeBestTerminationMode(
-    #     Base.Fix2(norm, 2);
-    #     max_stalled_steps = 32)
-
-    # sol = solve(prob, ALG)
 
     !successful_retcode(sol.retcode) && throw(OptimizationFailedError(sol.retcode, sol))
     pos = WorldPoint(sol.u[1:3]m)
@@ -208,17 +194,9 @@ function estimatepose3dof(
         runway_corners, observed_corners,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U), known_attitude)
 
-    # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
-    # prob = remake(PROB3DOF; collect(u₀), p=ps)
-    # alg = LevenbergMarquardt()
-    # termination_condition = AbsNormSafeBestTerminationMode(
-    #     Base.Fix2(norm, 2);
-    #     max_stalled_steps = 32)
     reinit!(CACHE3DOF, collect(u₀); p=ps)
     solve!(CACHE3DOF)
     sol = (; u=CACHE3DOF.u, retcode=CACHE3DOF.retcode)
-
-    # sol = solve(prob, ALG)
 
     !successful_retcode(sol.retcode) && throw(OptimizationFailedError(sol.retcode, sol))
     pos = WorldPoint(sol.u[1:3]m)
