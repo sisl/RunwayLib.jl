@@ -38,12 +38,9 @@ const CAMERA_CONFIG_OFFSET = CameraConfig{:offset}(
     1499.5 * 1pixel              # Principal point y-coordinate (image center)
 )
 
-# Backward compatibility
-const CAMERA_CONFIG = CAMERA_CONFIG_OFFSET
-
 """
     project(cam_pos::WorldPoint, cam_rot::RotZYX, world_pt::WorldPoint, 
-            config::CameraConfig{S}) -> ProjectionPoint{T, S}
+            config::CameraConfig{S}=CAMERA_CONFIG_OFFSET) -> ProjectionPoint{T, S}
 
 Project a 3D world point to 2D image coordinates using pinhole camera model.
 
@@ -89,7 +86,7 @@ offset_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_OFFSET)
 """
 function project(
         cam_pos::WorldPoint{T}, cam_rot::RotZYX, world_pt::WorldPoint{T′},
-        camconfig::CameraConfig{S}
+        camconfig::CameraConfig{S}=CAMERA_CONFIG_OFFSET
     ) where {T, T′, S}
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
     cam_pt.x <= 0m && throw(BehindCameraException(cam_pt.x))
@@ -115,12 +112,4 @@ function project(
         end
 
     end
-end
-
-# Backward compatibility method
-function project(
-        cam_pos::WorldPoint{T}, cam_rot::RotZYX, world_pt::WorldPoint{T′};
-        config = CAMERA_CONFIG
-    ) where {T, T′}
-    return project(cam_pos, cam_rot, world_pt, config)
 end
