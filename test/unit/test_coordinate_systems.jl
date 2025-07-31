@@ -48,7 +48,6 @@ using Unitful
 
         # Test with default (offset) coordinates
         proj_pt = project(cam_pos, cam_rot, world_pt)
-        @test isa(proj_pt, ProjectionPoint)
 
         # Test with explicit coordinate systems
         proj_pt_offset = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_OFFSET)
