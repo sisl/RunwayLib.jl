@@ -116,8 +116,8 @@ end
 
 function convertcamconf(to::CameraConfig{:centered}, from::CameraConfig{:offset}, proj::ProjectionPoint{T, :offset}) where {T}
     u, v = proj.x, proj.y
-    u_centered = -(u - to.optical_center_u)
-    v_centered = -(v - to.optical_center_v)
+    u_centered = -(u - from.optical_center_u)
+    v_centered = -(v - from.optical_center_v)
     return ProjectionPoint{T, :centered}(proj)
 end
 
