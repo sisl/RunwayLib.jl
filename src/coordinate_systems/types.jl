@@ -133,13 +133,18 @@ end
 
 # Convenience constructors for common use cases
 # WorldPoint(x, y, z) = WorldPoint{typeof(x)}(x, y, z)
-WorldPoint(xs::AbstractVector{T}) = WorldPoint{T}(xs)
+# WorldPoint(xs::AbstractVector{T}) = WorldPoint{T}(xs)
 # CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
-CameraPoint(xs::AbstractVector{T}) = CameraPoint{T}(xs)
+# CameraPoint(xs::AbstractVector{T}) = CameraPoint{T}(xs)
 # ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
 ProjectionPoint(xy::AbstractVector{T}) where T = ProjectionPoint{T, :offset}(xy)
 ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x, y)  # Default to offset coordinates
 ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
+
+# Base.BroadcastStyle(::Type{<:WorldPoint}) = Broadcast.ArrayStyle{WorldPoint}()
+Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{WorldPoint}}, ::Type{T}) where {T} = WorldPoint{T}(undef)
+# Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{WorldPoint}}, ::Type{T}) where {T} =
+#     WorldPoint{T}(undef, undef, undef)
 
 
 similar_type(::Type{<:ProjectionPoint{T, :centered}}, ::Type{T′}, s::Size{S}) where {T, T′, S} = ProjectionPoint{T′, :centered}
