@@ -144,8 +144,8 @@ using Unitful
 
         # Test that points at camera position cannot be projected (division by zero)
         world_pt_at_camera = WorldPoint(0.0u"m", 0.0u"m", 0.0u"m")
-        @test_throws DivideError project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_OFFSET)
-        @test_throws DivideError project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_CENTERED)
+        @test_throws BehindCameraException project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_OFFSET)
+        @test_throws BehindCameraException project(cam_pos, cam_rot, world_pt_at_camera, CAMERA_CONFIG_CENTERED)
 
         # Test projection consistency - points further away should project closer to center
         world_pt_near = WorldPoint(1.0u"m", 0.1u"m", 0.0u"m")
