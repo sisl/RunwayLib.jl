@@ -144,7 +144,7 @@ const PROB6DOF = let
     noise_model = _default6dofnoisemodel(projections)
     ps = PoseOptimizationParams6DOF(
         runway_corners, projections,
-        CAMERA_CONFIG, inv(cholesky(covmatrix(noise_model)).U)
+        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U)
     )
     # NonlinearLeastSquaresProblem{false}(POSEOPTFN, SVector{6}(rand(6)), ps)
     NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(6), ps)
@@ -170,7 +170,7 @@ const PROB3DOF = let
     noise_model = _default3dofnoisemodel(projections)
     ps = PoseOptimizationParams3DOF(
         runway_corners, projections,
-        CAMERA_CONFIG, inv(cholesky(covmatrix(noise_model)).U),
+        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U),
         true_rot
     )
 
@@ -191,9 +191,11 @@ function estimatepose6dof(
     u₀ = [initial_guess_pos .|> _ustrip(m);
           initial_guess_rot .|> _ustrip(rad)]
 
+    # for precompile we need the correct types
+    observed_corners = convertcamconf.([CAMERA_CONFIG_OFFSET], [config], observed_corners)
     ps = PoseOptimizationParams6DOF(
         runway_corners, observed_corners,
-        config, inv(cholesky(covmatrix(noise_model)).U))
+        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U))
 
     # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
     # prob = remake(PROB6DOF; u₀, p=ps)
@@ -231,9 +233,11 @@ function estimatepose3dof(
 
     u₀ = initial_guess_pos .|> _ustrip(m)
 
+    # for precompile we need the correct types
+    observed_corners = convertcamconf.([CAMERA_CONFIG_OFFSET], [config], observed_corners)
     ps = PoseOptimizationParams3DOF(
         runway_corners, observed_corners,
-        config, inv(cholesky(covmatrix(noise_model)).U), known_attitude)
+        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U), known_attitude)
 
     # prob = NonlinearLeastSquaresProblem{false}(POSEOPTFN, u₀, ps)
     # prob = remake(PROB3DOF; collect(u₀), p=ps)
