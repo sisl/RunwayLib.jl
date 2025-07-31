@@ -72,12 +72,9 @@ function pose_optimization_objective(optvar::AbstractVector{T},
 
     # Determine camera rotation via pattern matching
     cam_rot = @match ps begin
-        ps::PoseOptimizationParams6DOF =>
-            RotZYX(roll = optvar[4]rad,
-                   pitch = optvar[5]rad,
-                   yaw = optvar[6]rad)
-        ps::PoseOptimizationParams3DOF =>
-            ps.known_attitude
+        ps::PoseOptimizationParams6DOF => RotZYX(
+            roll = optvar[4]rad, pitch = optvar[5]rad, yaw = optvar[6]rad)
+        ps::PoseOptimizationParams3DOF => ps.known_attitude
     end
 
     # Project runway corners to image coordinates
@@ -85,7 +82,7 @@ function pose_optimization_objective(optvar::AbstractVector{T},
     # For some reason it's necessary for type inference to work.
     projected_corners = let cam_pos = cam_pos
         [project(cam_pos, cam_rot, corner, ps.camconfig)
-                            for corner in ps.runway_corners]
+         for corner in ps.runway_corners]
     end
 
     # Compute reprojection errors
