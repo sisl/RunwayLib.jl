@@ -193,8 +193,8 @@ function estimatepose6dof(
     # ALG = LevenbergMarquardt(; autodiff=AD, linsolve=LS.CholeskyFactorization())
     # ALG = LevenbergMarquardt(; autodiff=AD, linsolve=LS.RFLUFactorization(; thread=Val(false)))
     # CACHE6DOF = init(prob, ALG)
-    NonlinearSolveFirstOrder.reinit!(CACHE6DOF, collect(u₀); p=ps)
-    NonlinearSolveFirstOrder.solve!(CACHE6DOF)
+    reinit!(CACHE6DOF, collect(u₀); p=ps)
+    solve!(CACHE6DOF)
     sol = (; u=CACHE6DOF.u, retcode=CACHE6DOF.retcode)
 
     # termination_condition = AbsNormSafeBestTerminationMode(
@@ -234,8 +234,8 @@ function estimatepose3dof(
     # termination_condition = AbsNormSafeBestTerminationMode(
     #     Base.Fix2(norm, 2);
     #     max_stalled_steps = 32)
-    NonlinearSolveFirstOrder.reinit!(CACHE3DOF, collect(u₀); p=ps)
-    NonlinearSolveFirstOrder.solve!(CACHE3DOF)
+    reinit!(CACHE3DOF, collect(u₀); p=ps)
+    solve!(CACHE3DOF)
     sol = (; u=CACHE3DOF.u, retcode=CACHE3DOF.retcode)
 
     # sol = solve(prob, ALG)

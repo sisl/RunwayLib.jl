@@ -6,8 +6,10 @@ using LinearSolve: CholeskyFactorization, LinearSolve, NonlinearFunction,
                     NonlinearLeastSquaresProblem, SciMLBase, init
 using Rotations: Rotations, RotZYX, Rotation
 using ADTypes: AutoForwardDiff
-using NonlinearSolveFirstOrder: LevenbergMarquardt, NonlinearLeastSquaresProblem, NonlinearFunction
-using StaticArrays: similar_type
+using NonlinearSolveFirstOrder: LevenbergMarquardt, NonlinearLeastSquaresProblem, NonlinearFunction,
+                                reinit!, solve!
+using NonlinearSolveFirstOrder.SciMLBase: successful_retcode
+import StaticArrays: similar_type
 using StaticArrays: StaticArrays, FieldVector, SA, Size, SVector
 using TypedTables: TypedTables, Table
 using Unitful: Unitful, @u_str, @unit, NoUnits, Quantity, dimension, uconvert,
