@@ -15,7 +15,8 @@ using TypedTables: TypedTables, Table
 using Unitful: Unitful, @u_str, @unit, NoUnits, Quantity, dimension, uconvert,
                 ustrip, Length
 using Unitful.DefaultSymbols: DefaultSymbols, A, S, T, m, ps, rad, s
-using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
+using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel,
+                                        NoiseModel, covmatrix
 
 _uconvert(u) = Base.Fix1(uconvert, u)
 _ustrip(u) = Base.Fix1(ustrip, u)
