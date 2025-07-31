@@ -7,6 +7,7 @@ using StaticArrays
     include("unit/test_camera_model.jl")
     # include("unit/test_data_management.jl")
     include("unit/test_pose_estimation.jl")
+    include("unit/test_jet.jl")
     # include("unit/test_uncertainty_quantification.jl")
     # include("unit/test_integrity_monitoring.jl")
     # include("unit/test_visualization.jl")
