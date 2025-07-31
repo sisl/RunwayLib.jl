@@ -125,14 +125,11 @@ const _defaultnoisemodel(pts) = let
     distributions = [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in pts]
     UncorrGaussianNoiseModel(reduce(vcat, distributions))
 end
+
 const POSEOPTFN = NonlinearFunction{false, SciMLBase.FullSpecialize}(pose_optimization_objective)
 const AD = AutoForwardDiff(; chunksize=1)
 const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=CholeskyFactorization())
-# const ALG = TrustRegion(; autodiff=AD, linsolve=LS.CholeskyFactorization())
-# const ALG = NewtonRaphson(; autodiff=AD, linsolve=LS.RFLUFactorization())
-# const ALG = NewtonRaphson(; autodiff=AD, linsolve=LS.DirectLdiv!())
-# const ALG = TrustRegion(; autodiff=AD)
-# const ALG = SimpleNewtonRaphson(; autodiff=AD)
+
 const PROB6DOF = let
     (; runway_corners, projections, true_pos, true_rot) = setup_for_precompile()
     noise_model = _defaultnoisemodel(projections)
@@ -140,7 +137,6 @@ const PROB6DOF = let
         runway_corners, projections,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U)
     )
-    # NonlinearLeastSquaresProblem{false}(POSEOPTFN, SVector{6}(rand(6)), ps)
     NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(6), ps)
 end
 const CACHE6DOF = init(PROB6DOF, ALG)
@@ -153,8 +149,6 @@ const PROB3DOF = let
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U),
         true_rot
     )
-
-    # NonlinearLeastSquaresProblem{false}(POSEOPTFN, SVector{3}(rand(3)), ps)
     NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(3), ps)
 end
 const CACHE3DOF = init(PROB3DOF, ALG)
