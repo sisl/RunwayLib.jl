@@ -42,7 +42,7 @@ export get_runway_corners, validate_runway_spec
 export Table
 
 # Export configuration
-export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig, DEFAULT_OPTIMIZATION_CONFIG
+export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig, DEFAULT_OPTIMIZATION_CONFIG, convertcamconf
 
 # Export custom units
 export pixel, px
