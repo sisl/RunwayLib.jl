@@ -43,13 +43,6 @@ struct PoseOptimizationParams3DOF{T, T′, T′′, S,
     known_attitude::A
 end
 
-struct Foo{T} <: FieldVector{3, T}
-    x::T  # Along-track distance
-    y::T  # Cross-track distance
-    z::T  # Height above runway
-end
-
-
 """
     pose_optimization(pose_params, ps)
 
