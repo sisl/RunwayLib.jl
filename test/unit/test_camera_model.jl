@@ -1,6 +1,6 @@
 using Test
 using RunwayLib
-using Unitful
+using Unitful, Unitful.DefaultSymbols
 using StaticArrays
 using Rotations
 
