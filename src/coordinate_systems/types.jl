@@ -142,7 +142,7 @@ ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x
 ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
 
 # Base.BroadcastStyle(::Type{<:WorldPoint}) = Broadcast.ArrayStyle{WorldPoint}()
-Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{WorldPoint}}, ::Type{T}) where {T} = WorldPoint{T}(undef)
+# Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{WorldPoint}}, ::Type{T}) where {T} = WorldPoint{T}(undef)
 # Base.similar(::Broadcast.Broadcasted{Broadcast.ArrayStyle{WorldPoint}}, ::Type{T}) where {T} =
 #     WorldPoint{T}(undef, undef, undef)
 

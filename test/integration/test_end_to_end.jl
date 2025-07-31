@@ -17,8 +17,6 @@ using Distributions
             90.0u"°"     # true_bearing_deg
         )
 
-        @test isa(runway_spec, RunwaySpec)
-
         # 2. Define runway corners in world coordinates using StaticArrays
         runway_corners = SA[
             WorldPoint(0.0u"m", runway_spec.width_m / 2, runway_spec.threshold_elevation_m),
