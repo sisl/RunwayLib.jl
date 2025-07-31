@@ -1,7 +1,7 @@
 name = "RunwayLib"
 uuid = "c31d23ff-e9b5-4186-8ef8-ce4d62614c67"
 version = "0.1.0"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Romeo Valentin <romeov@stanford.edu>"]
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
