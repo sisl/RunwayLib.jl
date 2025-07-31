@@ -14,6 +14,7 @@ _ustrip(u) = Base.Fix1(ustrip, u)
 
 # Define custom pixel unit
 @unit pixel "pixel" Pixel 1 false
+const px = pixel
 
 # Register the pixel unit with Unitful
 Unitful.register(RunwayLib)
@@ -44,7 +45,7 @@ export Table
 export CAMERA_CONFIG, CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, CameraConfig, DEFAULT_OPTIMIZATION_CONFIG
 
 # Export custom units
-export pixel
+export pixel, px
 
 export BehindCameraException
 
