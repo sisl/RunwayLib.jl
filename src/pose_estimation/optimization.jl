@@ -52,7 +52,7 @@ function PoseOptimizationParams3DOF(runway_corners, observed_corners, camconfig,
 end
 
 """
-    pose_optimization(pose_params, ps)
+    pose_optimization_objective(pose_params, ps)
 
 Unified optimization function for pose estimation.
 
