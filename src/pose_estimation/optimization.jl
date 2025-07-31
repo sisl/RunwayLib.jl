@@ -183,7 +183,7 @@ function estimatepose3dof(
         known_attitude::RotZYX,
         config::CameraConfig{S};
         noise_model = _defaultnoisemodel(observed_corners),
-        initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
+        initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0]m,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
 
