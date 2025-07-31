@@ -123,6 +123,9 @@ const POSEOPTFN = NonlinearFunction{false, SciMLBase.FullSpecialize}(pose_optimi
 const AD = AutoForwardDiff(; chunksize=1)
 const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=CholeskyFactorization())
 
+"Camera configuration type for precompilation"
+const CAMCONF4COMP = CAMERA_CONFIG_OFFSET
+
 const PROB6DOF = let
     (; runway_corners, projections, true_pos, true_rot) = setup_for_precompile()
     noise_model = _defaultnoisemodel(projections)
@@ -158,11 +161,11 @@ function estimatepose6dof(
           initial_guess_rot .|> _ustrip(rad)]
 
     # for precompile we need the correct types
-    observed_corners = [convertcamconf(CAMERA_CONFIG_OFFSET, config, proj)
+    observed_corners = [convertcamconf(CAMCONF4COMP, config, proj)
                         for proj in observed_corners]
     ps = PoseOptimizationParams6DOF(
         runway_corners, observed_corners,
-        CAMERA_CONFIG_OFFSET, noise_model)
+        CAMCONF4COMP, noise_model)
 
     reinit!(CACHE6DOF, collect(u₀); p=ps)
     solve!(CACHE6DOF)
@@ -187,11 +190,11 @@ function estimatepose3dof(
     u₀ = initial_guess_pos .|> _ustrip(m)
 
     # for precompile we need the correct types
-    observed_corners = [convertcamconf(CAMERA_CONFIG_OFFSET, config, proj)
+    observed_corners = [convertcamconf(CAMCONF4COMP, config, proj)
                         for proj in observed_corners]
     ps = PoseOptimizationParams3DOF(
         runway_corners, observed_corners,
-        CAMERA_CONFIG_OFFSET, noise_model, known_attitude)
+        CAMCONF4COMP, noise_model, known_attitude)
 
     reinit!(CACHE3DOF, collect(u₀); p=ps)
     solve!(CACHE3DOF)
