@@ -1,7 +1,8 @@
 using Test
-using RunwayPoseEstimation
+using RunwayLib
 using StaticArrays
 using Unitful
+using Distributions
 
 @testset "End-to-End Integration" begin
     @testset "Complete Pipeline" begin
