@@ -89,11 +89,14 @@ function pose_optimization_objective(optvar::AbstractVector{T},
 
     # Compute reprojection errors
     error_vectors = [
-        SVector{2}((proj.x - obs.x), (proj.y - obs.y))
+        # we change the type here from a strongly typed "ProjectionPoint"
+        # to a more weakly typed `SVector` because we are about to concatenate them
+        SVector{2}(proj - obs)
         for (proj, obs) in zip(projected_corners, ps.observed_corners)
     ]
     errors = reduce(vcat, error_vectors)
 
+    # TODO clean this up
     # Apply noise weighting via Cholesky decomposition
     # U = ps.chol_upper * 1pixel
     # L_inv = inv(U')
