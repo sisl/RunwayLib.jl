@@ -146,38 +146,3 @@ function get_focal_length_pixels(config::CameraConfig)
     return config.focal_length / config.pixel_size
 end
 
-# Backward compatibility
-get_focal_length_pixels() = get_focal_length_pixels(CAMERA_CONFIG)
-
-"""
-    get_field_of_view(config::CameraConfig) -> NamedTuple
-
-Calculate horizontal and vertical field of view angles.
-
-# Arguments
-- `config::CameraConfig`: Camera configuration parameters
-
-# Returns
-- `NamedTuple` with `horizontal` and `vertical` FOV in radians
-
-# Examples
-```julia
-fov = get_field_of_view(CAMERA_CONFIG_CENTERED)
-println("Horizontal FOV: ", rad2deg(fov.horizontal), " degrees")
-println("Vertical FOV: ", rad2deg(fov.vertical), " degrees")
-```
-"""
-function get_field_of_view(config::CameraConfig)
-    # Calculate sensor dimensions
-    sensor_width = config.image_width * config.pixel_size
-    sensor_height = config.image_height * config.pixel_size
-
-    # Calculate field of view angles
-    horizontal_fov = 2 * atan(ustrip(sensor_width) / (2 * ustrip(config.focal_length)))
-    vertical_fov = 2 * atan(ustrip(sensor_height) / (2 * ustrip(config.focal_length)))
-
-    return (horizontal = horizontal_fov, vertical = vertical_fov)
-end
-
-# Backward compatibility
-get_field_of_view() = get_field_of_view(CAMERA_CONFIG)
