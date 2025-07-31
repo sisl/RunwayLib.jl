@@ -2,12 +2,12 @@
 
 julia_version = "1.12.0-rc1"
 manifest_format = "2.0"
-project_hash = "24344812276884430887c35ed4eb37c4eaace306"
+project_hash = "6f93a6c6637e69428e9d8be3c77bbda47a512578"
 
 [[deps.ADTypes]]
-git-tree-sha1 = "be7ae030256b8ef14a441726c4c37766b90b93a3"
+git-tree-sha1 = "7927b9af540ee964cc5d1b73293f1eb0b761a3a1"
 uuid = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
-version = "1.15.0"
+version = "1.16.0"
 weakdeps = ["ChainRulesCore", "ConstructionBase", "EnzymeCore"]
 
     [deps.ADTypes.extensions]
