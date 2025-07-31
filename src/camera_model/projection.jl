@@ -124,25 +124,3 @@ function project(
     ) where {T, T′}
     return project(cam_pos, cam_rot, world_pt, config)
 end
-
-"""
-    get_focal_length_pixels(config::CameraConfig) -> Quantity
-
-Get focal length in pixels from camera configuration.
-
-# Arguments
-- `config::CameraConfig`: Camera configuration parameters
-
-# Returns
-- Focal length in pixel units
-
-# Examples
-```julia
-f_px = get_focal_length_pixels(CAMERA_CONFIG_CENTERED)
-println("Focal length: ", f_px)
-```
-"""
-function get_focal_length_pixels(config::CameraConfig)
-    return config.focal_length / config.pixel_size
-end
-
