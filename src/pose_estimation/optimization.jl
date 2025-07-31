@@ -107,12 +107,24 @@ function pose_optimization_objective(optvar::AbstractVector{T},
     return ustrip.(NoUnits, weighted_errors)
 end
 
-const _default6dofnoisemodel(pts) =
-    UncorrGaussianNoiseModel(
-            reduce(vcat, [SA[Normal(0.0, 2.0),
-                             Normal(0.0, 2.0)]
-                          for _ in pts])
-    )
+function setup_for_precompile()
+        runway_corners = SA[
+            WorldPoint(1000.0m, -50.0m, 0.0m),
+            WorldPoint(1000.0m, 50.0m, 0.0m),
+            WorldPoint(3000.0m, 50.0m, 0.0m),
+            WorldPoint(3000.0m, -50.0m, 0.0m)
+        ]
+        true_pos = WorldPoint(-1300.0m, 0.0m, 80.0m)
+        true_rot = RotZYX(roll=0.03, pitch=0.04, yaw=0.05)
+        projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
+    return (; runway_corners, projections, true_pos, true_rot)
+end
+
+
+const _defaultnoisemodel(pts) = let
+    distributions = [SA[Normal(0.0, 2.0), Normal(0.0, 2.0)] for _ in pts]
+    UncorrGaussianNoiseModel(reduce(vcat, distributions))
+end
 const POSEOPTFN = NonlinearFunction{false, SciMLBase.FullSpecialize}(pose_optimization_objective)
 const AD = AutoForwardDiff(; chunksize=1)
 const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=CholeskyFactorization())
@@ -122,16 +134,8 @@ const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=CholeskyFactorization())
 # const ALG = TrustRegion(; autodiff=AD)
 # const ALG = SimpleNewtonRaphson(; autodiff=AD)
 const PROB6DOF = let
-        runway_corners = SA[
-            WorldPoint(1000.0m, -50.0m, 0.0m),
-            WorldPoint(1000.0m, 50.0m, 0.0m),
-            WorldPoint(3000.0m, 50.0m, 0.0m),
-            WorldPoint(3000.0m, -50.0m, 0.0m)
-        ]
-        true_pos = WorldPoint(-1300.0m, 0.0m, 80.0m)
-        true_rot = RotZYX(roll=0.03, pitch=0.04, yaw=0.05)
-        projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
-    noise_model = _default6dofnoisemodel(projections)
+    (; runway_corners, projections, true_pos, true_rot) = setup_for_precompile()
+    noise_model = _defaultnoisemodel(projections)
     ps = PoseOptimizationParams6DOF(
         runway_corners, projections,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U)
@@ -141,23 +145,9 @@ const PROB6DOF = let
 end
 const CACHE6DOF = init(PROB6DOF, ALG)
 
-const _default3dofnoisemodel(pts) =
-    UncorrGaussianNoiseModel(
-            reduce(vcat, [SA[Normal(0.0, 2.0),
-                             Normal(0.0, 2.0)]
-                          for _ in pts])
-    )
 const PROB3DOF = let
-        runway_corners = SA[
-            WorldPoint(1000.0m, -50.0m, 0.0m),
-            WorldPoint(1000.0m, 50.0m, 0.0m),
-            WorldPoint(3000.0m, 50.0m, 0.0m),
-            WorldPoint(3000.0m, -50.0m, 0.0m)
-        ]
-        true_pos = WorldPoint(-1300.0m, 0.0m, 80.0m)
-        true_rot = RotZYX(roll=0.03, pitch=0.04, yaw=0.05)
-        projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
-    noise_model = _default3dofnoisemodel(projections)
+    (; runway_corners, projections, true_pos, true_rot) = setup_for_precompile()
+    noise_model = _defaultnoisemodel(projections)
     ps = PoseOptimizationParams3DOF(
         runway_corners, projections,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U),
@@ -173,7 +163,7 @@ function estimatepose6dof(
         runway_corners::AbstractVector{<:WorldPoint},
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         config::CameraConfig{S};
-        noise_model = _default6dofnoisemodel(observed_corners),
+        noise_model = _defaultnoisemodel(observed_corners),
         initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0]m,
         initial_guess_rot::AbstractVector{<:DimensionlessQuantity} = SA[0.0, 0.0, 0.0]rad,
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
@@ -217,7 +207,7 @@ function estimatepose3dof(
         observed_corners::AbstractVector{<:ProjectionPoint{T, S}},
         known_attitude::RotZYX,
         config::CameraConfig{S};
-        noise_model = _default3dofnoisemodel(observed_corners),
+        noise_model = _defaultnoisemodel(observed_corners),
         initial_guess_pos::AbstractVector{<:Length} = SA[-1000.0, 0.0, 100.0] * u"m",
         optimization_config = DEFAULT_OPTIMIZATION_CONFIG
     ) where {T, S}
