@@ -192,7 +192,8 @@ function estimatepose6dof(
           initial_guess_rot .|> _ustrip(rad)]
 
     # for precompile we need the correct types
-    observed_corners = convertcamconf.([CAMERA_CONFIG_OFFSET], [config], observed_corners)
+    observed_corners = [convertcamconf(CAMERA_CONFIG_OFFSET, config, proj)
+                        for proj in observed_corners]
     ps = PoseOptimizationParams6DOF(
         runway_corners, observed_corners,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U))
@@ -234,7 +235,8 @@ function estimatepose3dof(
     u₀ = initial_guess_pos .|> _ustrip(m)
 
     # for precompile we need the correct types
-    observed_corners = convertcamconf.([CAMERA_CONFIG_OFFSET], [config], observed_corners)
+    observed_corners = [convertcamconf(CAMERA_CONFIG_OFFSET, config, proj)
+                        for proj in observed_corners]
     ps = PoseOptimizationParams3DOF(
         runway_corners, observed_corners,
         CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U), known_attitude)

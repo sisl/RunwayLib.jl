@@ -39,9 +39,9 @@ using StaticArrays
         ]
         true_pos = WorldPoint(-1300.0m, 0.0m, 80.0m)
         true_rot = RotZYX(roll=0.03, pitch=0.04, yaw=0.05)
-        projections = [project(true_pos, true_rot, corner, CAMERA_CONFIG_OFFSET) for corner in runway_corners]
+        camconfig = CAMERA_CONFIG_OFFSET
+        projections = [project(true_pos, true_rot, corner, camconfig) for corner in runway_corners]
         
-        camconfig = RunwayLib.CAMERA_CONFIG
 
         # Test the pose optimization objective function
         @testset "pose_optimization_objective" begin
