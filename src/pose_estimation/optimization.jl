@@ -26,7 +26,7 @@ struct PoseOptimizationParams6DOF{T, T′, T′′, S,
 end
 function PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel)
     Linv = inv(cholesky(covmatrix(noisemodel)).U')
-    return PoseOptimizationParams6DOF(runway_corners, observed_conrers, camconfig, Linv)
+    return PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, Linv)
 end
 
 """
@@ -48,7 +48,7 @@ struct PoseOptimizationParams3DOF{T, T′, T′′, S,
 end
 function PoseOptimizationParams3DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel, known_attitude)
     Linv = inv(cholesky(covmatrix(noisemodel)).U')
-    return PoseOptimizationParams3DOF(runway_corners, observed_conrers, camconfig, Linv, known_attitude)
+    return PoseOptimizationParams3DOF(runway_corners, observed_corners, camconfig, Linv, known_attitude)
 end
 
 """
@@ -131,8 +131,7 @@ const PROB6DOF = let
     noise_model = _defaultnoisemodel(projections)
     ps = PoseOptimizationParams6DOF(
         runway_corners, projections,
-        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U)
-    )
+        CAMERA_CONFIG_OFFSET, noise_model)
     NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(6), ps)
 end
 const CACHE6DOF = init(PROB6DOF, ALG)
@@ -142,7 +141,7 @@ const PROB3DOF = let
     noise_model = _defaultnoisemodel(projections)
     ps = PoseOptimizationParams3DOF(
         runway_corners, projections,
-        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U),
+        CAMERA_CONFIG_OFFSET, noise_model,
         true_rot
     )
     NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(3), ps)
@@ -166,7 +165,7 @@ function estimatepose6dof(
                         for proj in observed_corners]
     ps = PoseOptimizationParams6DOF(
         runway_corners, observed_corners,
-        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U))
+        CAMERA_CONFIG_OFFSET, noise_model)
 
     reinit!(CACHE6DOF, collect(u₀); p=ps)
     solve!(CACHE6DOF)
@@ -195,7 +194,7 @@ function estimatepose3dof(
                         for proj in observed_corners]
     ps = PoseOptimizationParams3DOF(
         runway_corners, observed_corners,
-        CAMERA_CONFIG_OFFSET, inv(cholesky(covmatrix(noise_model)).U), known_attitude)
+        CAMERA_CONFIG_OFFSET, noise_model, known_attitude)
 
     reinit!(CACHE3DOF, collect(u₀); p=ps)
     solve!(CACHE3DOF)
