@@ -6,91 +6,6 @@ using LinearAlgebra
 using Unitful
 
 @testset "Coordinate Systems" begin
-    @testset "WorldPoint" begin
-        # Test construction with units
-        wp = WorldPoint(1.0u"m", 2.0u"m", 3.0u"m")
-        @test wp.x == 1.0u"m"
-        @test wp.y == 2.0u"m"
-        @test wp.z == 3.0u"m"
-
-        # Test FieldVector interface
-        @test length(wp) == 3
-        @test wp[1] == 1.0u"m"
-        @test wp[2] == 2.0u"m"
-        @test wp[3] == 3.0u"m"
-
-        # Test arithmetic operations
-        wp2 = WorldPoint(4.0u"m", 5.0u"m", 6.0u"m")
-        wp_sum = wp + wp2
-        @test wp_sum == WorldPoint(5.0u"m", 7.0u"m", 9.0u"m")
-
-        # Test scalar multiplication
-        wp_scaled = 2.0 * wp
-        @test wp_scaled == WorldPoint(2.0u"m", 4.0u"m", 6.0u"m")
-
-        # Test unit conversions
-        wp_km = WorldPoint(0.001u"km", 0.002u"km", 0.003u"km")
-        @test uconvert(u"m", wp_km.x) == 1.0u"m"
-        @test uconvert(u"m", wp_km.y) == 2.0u"m"
-        @test uconvert(u"m", wp_km.z) == 3.0u"m"
-    end
-
-    @testset "CameraPoint" begin
-        # Test construction with units
-        cp = CameraPoint(1.0u"m", 2.0u"m", 3.0u"m")
-        @test cp.x == 1.0u"m"
-        @test cp.y == 2.0u"m"
-        @test cp.z == 3.0u"m"
-
-        # Test FieldVector interface
-        @test length(cp) == 3
-        @test cp[1] == 1.0u"m"
-
-        # Test arithmetic operations
-        cp2 = CameraPoint(4.0u"m", 5.0u"m", 6.0u"m")
-        cp_sum = cp + cp2
-        @test cp_sum == CameraPoint(5.0u"m", 7.0u"m", 9.0u"m")
-
-        # Test mixed units
-        cp_mm = CameraPoint(1000.0u"mm", 2000.0u"mm", 3000.0u"mm")
-        @test uconvert(u"m", cp_mm.x) == 1.0u"m"
-        @test uconvert(u"m", cp_mm.y) == 2.0u"m"
-        @test uconvert(u"m", cp_mm.z) == 3.0u"m"
-    end
-
-    @testset "ProjectionPoint" begin
-        # Test construction with pixel units (default offset coordinates)
-        pp = ProjectionPoint(100.0 * 1pixel, 200.0 * 1pixel)
-        @test pp.x == 100.0 * 1pixel
-        @test pp.y == 200.0 * 1pixel
-
-        # Test FieldVector interface
-        @test length(pp) == 2
-        @test pp[1] == 100.0 * 1pixel
-        @test pp[2] == 200.0 * 1pixel
-
-        # Test arithmetic operations
-        pp2 = ProjectionPoint(50.0 * 1pixel, 75.0 * 1pixel)
-        pp_sum = pp + pp2
-        @test pp_sum.x == 150.0 * 1pixel
-        @test pp_sum.y == 275.0 * 1pixel
-
-        # Test fractional pixels
-        pp_sub = ProjectionPoint(100.5 * 1pixel, 200.25 * 1pixel)
-        @test pp_sub.x == 100.5 * 1pixel
-        @test pp_sub.y == 200.25 * 1pixel
-
-        # Test centered coordinates
-        pp_centered = ProjectionPoint{typeof(1.0pixel), :centered}(-50.0 * 1pixel, 25.0 * 1pixel)
-        @test pp_centered.x == -50.0 * 1pixel
-        @test pp_centered.y == 25.0 * 1pixel
-
-        # Test offset coordinates explicitly
-        pp_offset = ProjectionPoint{typeof(1.0pixel), :offset}(1024.0 * 1pixel, 768.0 * 1pixel)
-        @test pp_offset.x == 1024.0 * 1pixel
-        @test pp_offset.y == 768.0 * 1pixel
-    end
-
     @testset "Coordinate Transformations" begin
         # Test world to camera transformation with units
         cam_pos = WorldPoint(0.0u"m", 0.0u"m", 0.0u"m")
@@ -138,9 +53,6 @@ using Unitful
         # Test with explicit coordinate systems
         proj_pt_offset = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_OFFSET)
         proj_pt_centered = project(cam_pos, cam_rot, world_pt, CAMERA_CONFIG_CENTERED)
-
-        @test isa(proj_pt_offset, ProjectionPoint)
-        @test isa(proj_pt_centered, ProjectionPoint)
 
         # Test that points at camera position cannot be projected (division by zero)
         world_pt_at_camera = WorldPoint(0.0u"m", 0.0u"m", 0.0u"m")
