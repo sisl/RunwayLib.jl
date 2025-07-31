@@ -15,6 +15,7 @@ using TypedTables: TypedTables, Table
 using Unitful: Unitful, @u_str, @unit, NoUnits, Quantity, dimension, uconvert,
                 ustrip, Length
 using Unitful.DefaultSymbols: DefaultSymbols, A, S, T, m, ps, rad, s
+using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
 
 _uconvert(u) = Base.Fix1(uconvert, u)
 _ustrip(u) = Base.Fix1(ustrip, u)
@@ -36,8 +37,7 @@ export world_pt_to_cam_pt, cam_pt_to_world_pt, project
 export RunwaySpec, PoseEstimate
 
 # Re-export noise models from ProbabilisticParameterEstimators
-using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
-export UncorrGaussianNoiseModel, CorrGaussianNoiseModel, covmatrix
+export UncorrGaussianNoiseModel, CorrGaussianNoiseModel, NoiseModel, covmatrix
 
 # Export camera model functions
 export get_focal_length_pixels, get_field_of_view, pixel_to_ray_direction

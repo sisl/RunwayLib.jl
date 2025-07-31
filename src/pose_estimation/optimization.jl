@@ -22,7 +22,11 @@ struct PoseOptimizationParams6DOF{T, T′, T′′, S,
     runway_corners::RC
     observed_corners::OC
     camconfig::CameraConfig{S}
-    chol_upper::M
+    Linv::M
+end
+function PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel)
+    Linv = inv(cholesky(covmatrix(noisemodel)).U')
+    return PoseOptimizationParams6DOF(runway_corners, observed_conrers, camconfig, Linv)
 end
 
 """
@@ -39,8 +43,12 @@ struct PoseOptimizationParams3DOF{T, T′, T′′, S,
     runway_corners::RC
     observed_corners::OC
     camconfig::CameraConfig{S}
-    chol_upper::M
+    Linv::M
     known_attitude::A
+end
+function PoseOptimizationParams3DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel, known_attitude)
+    Linv = inv(cholesky(covmatrix(noisemodel)).U')
+    return PoseOptimizationParams3DOF(runway_corners, observed_conrers, camconfig, Linv, known_attitude)
 end
 
 """
@@ -89,13 +97,8 @@ function pose_optimization_objective(optvar::AbstractVector{T},
     ]
     errors = reduce(vcat, error_vectors)
 
-    # TODO clean this up
-    # Apply noise weighting via Cholesky decomposition
-    # U = ps.chol_upper * 1pixel
-    # L_inv = inv(U')
-    L_inv = ps.chol_upper / 1pixel
-
-    weighted_errors = L_inv * errors
+    Linv = ps.Linv/1px
+    weighted_errors = Linv * errors
     
     return ustrip.(NoUnits, weighted_errors)
 end
