@@ -6,19 +6,6 @@ using SimpleNonlinearSolve.jl and integrating with ProbabilisticParameterEstimat
 noise models.
 """
 
-using SimpleNonlinearSolve
-import Moshi.Match: @match
-# import NonlinearSolveBase
-import NonlinearSolveFirstOrder
-import NonlinearSolveFirstOrder: LevenbergMarquardt, NewtonRaphson, TrustRegion
-import SciMLBase: successful_retcode
-using StaticArrays
-using LinearAlgebra
-import LinearAlgebra: AbstractTriangular
-using Rotations
-using LinearSolve
-const LS = LinearSolve
-
 
 abstract type AbstractPoseOptimizationParams end
 
@@ -125,7 +112,7 @@ const _default6dofnoisemodel(pts) =
     )
 const POSEOPTFN = NonlinearFunction{false, SciMLBase.FullSpecialize}(pose_optimization_objective)
 const AD = AutoForwardDiff(; chunksize=1)
-const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=LS.CholeskyFactorization())
+const ALG = LevenbergMarquardt(; autodiff=AD, linsolve=CholeskyFactorization())
 # const ALG = TrustRegion(; autodiff=AD, linsolve=LS.CholeskyFactorization())
 # const ALG = NewtonRaphson(; autodiff=AD, linsolve=LS.RFLUFactorization())
 # const ALG = NewtonRaphson(; autodiff=AD, linsolve=LS.DirectLdiv!())

@@ -7,9 +7,6 @@ This module defines the three main coordinate systems used:
 - ProjectionPoint: Image projection coordinates
 """
 
-using StaticArrays
-import StaticArrays: similar_type
-using Unitful
 
 WithDims(q::Quantity)  = Quantity{T, dimension(q), U} where {T<:Real, U<:Unitful.Unitlike}
 WithDims(u::Unitful.Units)     = Quantity{T, dimension(u), U} where {T<:Real, U<:Unitful.Unitlike}

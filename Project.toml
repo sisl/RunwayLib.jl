@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Your Name <your.email@example.com>"]
 
 [deps]
+ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
@@ -31,6 +32,7 @@ ForwardDiff = {rev = "rv/remove-quote-assert-string-interpolation", url = "https
 SciMLBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/SciMLBase.jl"}
 
 [compat]
+ADTypes = "1.16.0"
 DiffEqBase = "6.178.0"
 ForwardDiff = "1.0.1"
 LinearAlgebra = "1.12.0"
