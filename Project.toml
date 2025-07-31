@@ -28,7 +28,6 @@ XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 [sources]
 DiffEqBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/DiffEqBase.jl"}
 ForwardDiff = {rev = "rv/remove-quote-assert-string-interpolation", url = "https://github.com/RomeoV/ForwardDiff.jl.git"}
-ProbabilisticParameterEstimators = {path = "/home/romeo/.julia/dev/ProbabilisticParameterEstimators"}
 SciMLBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/SciMLBase.jl"}
 
 [compat]
