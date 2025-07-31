@@ -8,9 +8,6 @@ This module defines the three main coordinate systems used:
 """
 
 
-WithDims(q::Quantity)  = Quantity{T, dimension(q), U} where {T<:Real, U<:Unitful.Unitlike}
-WithDims(u::Unitful.Units)     = Quantity{T, dimension(u), U} where {T<:Real, U<:Unitful.Unitlike}
-
 """
     WorldPoint{T} <: FieldVector{3, T}
 
