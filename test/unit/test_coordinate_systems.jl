@@ -69,5 +69,12 @@ using Unitful
         # Both should have same projection (similar triangles)
         @test proj_near.x ≈ proj_far.x atol = 1.0e-6 * 1pixel
         @test proj_near.y ≈ proj_far.y atol = 1.0e-6 * 1pixel
+
+        p = ProjectionPoint(:offset, rand(2)px...)
+        p′ = convertcamconf(CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, p)
+        p′′ = convertcamconf(CAMERA_CONFIG_OFFSET, CAMERA_CONFIG_CENTERED, p′)
+        p′′′ = convertcamconf(CAMERA_CONFIG_CENTERED, CAMERA_CONFIG_OFFSET, p′′)
+        @test p ≈ p′′
+        @test p′ ≈ p′′′
     end
 end
