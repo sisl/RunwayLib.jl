@@ -1,10 +1,7 @@
-using Distributions
-using LinearAlgebra
 using RunwayLib
-using ProbabilisticParameterEstimators
+using StaticArrays
 using Rotations
 using Unitful, Unitful.DefaultSymbols
-using StaticArrays
 
 function (@main)(args::Vector{String})::Cint
     runway_corners = SA[

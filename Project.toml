@@ -26,7 +26,6 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 
 [sources]
-DiffEqBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/DiffEqBase.jl"}
 ForwardDiff = {rev = "rv/remove-quote-assert-string-interpolation", url = "https://github.com/RomeoV/ForwardDiff.jl.git"}
 Polyester = {rev = "master", url = "https://github.com/RomeoV/Polyester.jl"}
 PolyesterWeave = {rev = "main", url = "https://github.com/RomeoV/PolyesterWeave.jl"}
@@ -34,7 +33,7 @@ SciMLBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/S
 
 [compat]
 ADTypes = "1.16.0"
-DiffEqBase = "6.178.0"
+DiffEqBase = "6.179.0"
 ForwardDiff = "1.0.1"
 LinearAlgebra = "1.12.0"
 LinearSolve = "3.23.0"
