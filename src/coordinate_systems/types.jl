@@ -131,7 +131,7 @@ end
 # CameraPoint(x, y, z) = CameraPoint{typeof(x)}(x, y, z)
 # CameraPoint(xs::AbstractVector{T}) = CameraPoint{T}(xs)
 # ProjectionPoint(x, y) = ProjectionPoint{typeof(x), :offset}(x, y)  # Default to offset coordinates
-ProjectionPoint(xy::AbstractVector{T}) where T = ProjectionPoint{T, :offset}(xy)
+ProjectionPoint(xy::AbstractVector{T}) where {T} = ProjectionPoint{T, :offset}(xy)
 ProjectionPoint(type::Symbol, x::T, y::T) where {T} = ProjectionPoint{T, type}(x, y)  # Default to offset coordinates
 ProjectionPoint{T}(x, y) where {T} = ProjectionPoint{T, :offset}(x, y)
 

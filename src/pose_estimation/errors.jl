@@ -3,5 +3,5 @@ struct OptimizationFailedError{R, S} <: Exception
     sol::S
 end
 function Base.showerror(io::IO, ex::OptimizationFailedError)
-    print(io, "Optimization failed with retcode $(ex.retcode).")
+    return print(io, "Optimization failed with retcode $(ex.retcode).")
 end

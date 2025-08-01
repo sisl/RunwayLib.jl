@@ -7,5 +7,5 @@ struct BehindCameraException{T} <: Exception
     x::T
 end
 function Base.showerror(io::IO, ex::BehindCameraException)
-    print(io, "Point to be projected is $(ex.x) behind the camera.")
+    return print(io, "Point to be projected is $(ex.x) behind the camera.")
 end

@@ -3,20 +3,20 @@ module RunwayLib
 using Distributions: Distributions, Normal
 using LinearAlgebra: LinearAlgebra, /, cholesky
 using LinearSolve: CholeskyFactorization, LinearSolve, NonlinearFunction,
-                    NonlinearLeastSquaresProblem, SciMLBase, init
+    NonlinearLeastSquaresProblem, SciMLBase, init
 using Rotations: Rotations, RotZYX, Rotation
 using ADTypes: AutoForwardDiff
 using NonlinearSolveFirstOrder: LevenbergMarquardt, NonlinearLeastSquaresProblem, NonlinearFunction,
-                                reinit!, solve!
+    reinit!, solve!
 using NonlinearSolveFirstOrder.SciMLBase: successful_retcode
 import StaticArrays: similar_type
 using StaticArrays: StaticArrays, FieldVector, SA, Size, SVector
 using TypedTables: TypedTables, Table
 using Unitful: Unitful, @u_str, @unit, NoUnits, Quantity, dimension, uconvert,
-                ustrip, Length
+    ustrip, Length
 using Unitful.DefaultSymbols: DefaultSymbols, A, S, T, m, ps, rad, s
 using ProbabilisticParameterEstimators: UncorrGaussianNoiseModel, CorrGaussianNoiseModel,
-                                        NoiseModel, covmatrix
+    NoiseModel, covmatrix
 
 _uconvert(u) = Base.Fix1(uconvert, u)
 _ustrip(u) = Base.Fix1(ustrip, u)

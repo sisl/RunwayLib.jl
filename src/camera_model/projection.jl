@@ -86,7 +86,7 @@ offset_coords = project(cam_pos, cam_rot, runway_corner, CAMERA_CONFIG_OFFSET)
 """
 function project(
         cam_pos::WorldPoint{T}, cam_rot::RotZYX, world_pt::WorldPoint{T′},
-        camconfig::CameraConfig{S}=CAMERA_CONFIG_OFFSET
+        camconfig::CameraConfig{S} = CAMERA_CONFIG_OFFSET
     ) where {T, T′, S}
     cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
     cam_pt.x <= 0m && throw(BehindCameraException(cam_pt.x))

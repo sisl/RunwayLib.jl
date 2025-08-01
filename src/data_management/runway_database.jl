@@ -41,27 +41,29 @@ struct RunwaySpec{L, W, E, B}
     width_m::W
     threshold_elevation_m::E
     true_bearing_deg::B
-    
-    function RunwaySpec(icao_code::String, length_m::L, width_m::W, 
-                       threshold_elevation_m::E, true_bearing_deg::B) where {L, W, E, B}
+
+    function RunwaySpec(
+            icao_code::String, length_m::L, width_m::W,
+            threshold_elevation_m::E, true_bearing_deg::B
+        ) where {L, W, E, B}
         # Validate inputs
         if isempty(icao_code)
             throw(ArgumentError("ICAO code cannot be empty"))
         end
-        
+
         if ustrip(length_m) <= 0
             throw(ArgumentError("Runway length must be positive"))
         end
-        
+
         if ustrip(width_m) <= 0
             throw(ArgumentError("Runway width must be positive"))
         end
-        
+
         # Normalize bearing to [0, 360) degrees
         bearing_deg = mod(ustrip(u"°", true_bearing_deg), 360.0)
         normalized_bearing = bearing_deg * unit(true_bearing_deg)
-        
-        new{L, W, E, B}(icao_code, length_m, width_m, threshold_elevation_m, normalized_bearing)
+
+        return new{L, W, E, B}(icao_code, length_m, width_m, threshold_elevation_m, normalized_bearing)
     end
 end
 
@@ -102,15 +104,15 @@ println("Far end right: ", corners[4])
 function get_runway_corners(runway_spec::RunwaySpec)
     # Half-width for corner calculations
     half_width = runway_spec.width_m / 2
-    
+
     # Define corners relative to threshold center
     corners = SA[
         WorldPoint(0.0u"m", -half_width, runway_spec.threshold_elevation_m),  # Threshold left
         WorldPoint(0.0u"m", half_width, runway_spec.threshold_elevation_m),   # Threshold right
         WorldPoint(runway_spec.length_m, -half_width, runway_spec.threshold_elevation_m),  # Far left
-        WorldPoint(runway_spec.length_m, half_width, runway_spec.threshold_elevation_m)    # Far right
+        WorldPoint(runway_spec.length_m, half_width, runway_spec.threshold_elevation_m),    # Far right
     ]
-    
+
     return corners
 end
 
@@ -144,24 +146,24 @@ function validate_runway_spec(runway_spec::RunwaySpec)
     if length_m < 500.0 || length_m > 6000.0
         return false
     end
-    
+
     # Check width range (typical runway widths)
     width_m = ustrip(u"m", runway_spec.width_m)
     if width_m < 15.0 || width_m > 100.0
         return false
     end
-    
+
     # Check elevation range (reasonable airport elevations)
     elevation_m = ustrip(u"m", runway_spec.threshold_elevation_m)
     if elevation_m < -100.0 || elevation_m > 5000.0
         return false
     end
-    
+
     # Check bearing range
     bearing_deg = ustrip(u"°", runway_spec.true_bearing_deg)
     if bearing_deg < 0.0 || bearing_deg >= 360.0
         return false
     end
-    
+
     return true
 end

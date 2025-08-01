@@ -46,7 +46,7 @@ cam_pt = world_pt_to_cam_pt(cam_pos, cam_rot, world_pt)
 # After rotation, x becomes -y in camera frame
 ```
 """
-function world_pt_to_cam_pt(cam_pos::WorldPoint{T}, R::RotZYX, world_pt::WorldPoint{T′}) where {T<:Length, T′<:Length}
+function world_pt_to_cam_pt(cam_pos::WorldPoint{T}, R::RotZYX, world_pt::WorldPoint{T′}) where {T <: Length, T′ <: Length}
     # Translate to camera-relative coordinates
     relative_pt = world_pt .- cam_pos
 
