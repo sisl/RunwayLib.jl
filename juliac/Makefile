@@ -8,6 +8,9 @@ RPATH_FLAGS = -Wl,-rpath,\$$ORIGIN -Wl,-rpath,\$$ORIGIN/julia
 LDFLAGS = -L. -Ljulia
 LIBS = -lposeest -ljulia
 
+run: mainc julia/.cleaned
+	./mainc
+
 main: main.jl Project.toml Manifest.toml $(SRC)
 	JULIAC="./juliac/juliac.jl" ; \
 	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --output-exe main main.jl
@@ -41,9 +44,6 @@ julia/.cleaned: julia/.installed required_libraries.txt
 julia: julia/.installed
 
 julia-clean: julia/.cleaned
-
-run: mainc
-	./mainc
 
 
 .PHONY: clean run install-julialibs julia-clean
