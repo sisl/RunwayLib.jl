@@ -4,7 +4,7 @@ SRC = $(shell find $(SRCDIR) -name "*.jl")
 
 CC = gcc
 CFLAGS = -Wall -O2
-RPATH_FLAGS = -Wl,-rpath,'$$ORIGIN' -Wl,-rpath,'$$ORIGIN/julia'
+RPATH_FLAGS = -Wl,-rpath,\$$ORIGIN -Wl,-rpath,\$$ORIGIN/julia
 LDFLAGS = -L. -Ljulia
 LIBS = -lposeest -ljulia
 
@@ -21,21 +21,29 @@ Manifest.toml: Project.toml ../Project.toml
 	@touch $@ # Pkg.instantiate doesn't update the mtime if there are no changes
 
 mainc: main.c libposeest.h libposeest.so julia
-	$(CC) $(CFLAGS) $(RPATH_FLAGS) -o mainc main.c $(LDFLAGS) $(LIBS)
+	gcc -Wall -O2 -Wl,-rpath='$$ORIGIN' -Wl,-rpath='$$ORIGIN/julia' -o mainc main.c -L. -Ljulia -lposeest -ljulia
 
-install-julialibs:
+julia/.installed:
 	@echo "Copying Julia libraries..."
-	cp -r $$($(JULIA) -e "print(joinpath(Sys.BINDIR, \"..\", \"lib\"))") ./julia
-    ./create_symlinks.sh
-	@echo "Julia libraries installed to ./julia/"
+	JULIA_LIB_DIR=$$($(JULIA) -e "print(joinpath(Sys.BINDIR, \"..\", \"lib\"))"); \
+	cp -r "$$JULIA_LIB_DIR"/* .
+	@touch julia/.installed
+	@echo "Julia libraries installed to current directory"
 
-julia: install-julialibs
+julia/.cleaned: julia/.installed mainc
+	@echo "Cleaning up unused Julia libraries..."
+	./cleanup_julia_libs.sh
+	@touch julia/.cleaned
+
+julia: julia/.installed
+
+julia-clean: julia/.cleaned
 
 run: mainc
 	./mainc
 
 
-.PHONY: clean run install-julialibs
+.PHONY: clean run install-julialibs julia-clean
 
 clean:
-	-rm -f main mainc libposeest.so Manifest.toml
+	-rm -rf main mainc libposeest.so Manifest.toml julia
