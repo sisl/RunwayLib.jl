@@ -30,10 +30,13 @@ julia/.installed:
 	@touch julia/.installed
 	@echo "Julia libraries installed to current directory"
 
-julia/.cleaned: julia/.installed mainc
-	@echo "Cleaning up unused Julia libraries..."
-	./cleanup_julia_libs.sh
+julia/.cleaned: julia/.installed required_libraries.txt
+	@echo "Cleaning julia/ directory based on required_libraries.txt"
+	@echo "Before cleanup: $$(du -sh julia/ | cut -f1)"
+	cd julia && for file in *.so*; do [ -f "$$file" ] && stem=$$(echo "$$file" | sed 's/\.so.*/.so/') && ! grep -q "$$stem" ../required_libraries.txt && rm -f "$$file" || true; done
+	@echo "After cleanup: $$(du -sh julia/ | cut -f1)"
 	@touch julia/.cleaned
+
 
 julia: julia/.installed
 
@@ -46,4 +49,4 @@ run: mainc
 .PHONY: clean run install-julialibs julia-clean
 
 clean:
-	-rm -rf main mainc libposeest.so Manifest.toml julia
+	-rm -rf main mainc libposeest.so Manifest.toml julia abiinfo.json libjulia.so*
