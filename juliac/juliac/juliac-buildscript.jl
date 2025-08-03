@@ -27,6 +27,8 @@ if Base.JLOptions().trim != 0
     include(joinpath(@__DIR__, "juliac-trim-base.jl"))
 end
 
+include(joinpath(@__DIR__, "abi_export.jl"))
+
 # Load user code
 
 import Base.Experimental.entrypoint
@@ -67,11 +69,18 @@ let mod = Base.include(Main, ARGS[1])
     #entrypoint(join, (Base.GenericIOBuffer{Memory{UInt8}}, Array{String, 1}, Char))
     entrypoint(Base.task_done_hook, (Task,))
     entrypoint(Base.wait, ())
-    entrypoint(Base.poptask, (Base.StickyWorkqueue,))
     entrypoint(Base.trypoptask, (Base.StickyWorkqueue,))
     entrypoint(Base.checktaskempty, ())
     if ARGS[3] == "true"
         ccall(:jl_add_ccallable_entrypoints, Cvoid, ())
+    end
+
+    # Export info about entrypoints and structs needed to create header files
+    if length(ARGS) >= 4
+        abi_export = ARGS[4]
+        open(abi_export, "w") do io
+            write_abi_metadata(io)
+        end
     end
 end
 
