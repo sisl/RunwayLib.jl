@@ -26,6 +26,7 @@ mainc: main.c libposeest.h libposeest.so julia
 install-julialibs:
 	@echo "Copying Julia libraries..."
 	cp -r $$($(JULIA) -e "print(joinpath(Sys.BINDIR, \"..\", \"lib\"))") ./julia
+    ./create_symlinks.sh
 	@echo "Julia libraries installed to ./julia/"
 
 julia: install-julialibs
@@ -37,4 +38,4 @@ run: mainc
 .PHONY: clean run install-julialibs
 
 clean:
-	-rm -f main mainc libposeest Manifest.toml
+	-rm -f main mainc libposeest.so Manifest.toml
