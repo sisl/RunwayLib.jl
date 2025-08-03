@@ -19,9 +19,9 @@ Base.@ccallable function test_estimators()::Cint
         runway_corners, projections, camconfig
     )
 
-    sol3dof = estimatepose3dof(
-        runway_corners, projections, true_rot, camconfig
-    )
+    # sol3dof = estimatepose3dof(
+    #     runway_corners, projections, true_rot, camconfig
+    # )
     println(Core.stdout, ustrip(m, sol6dof.pos.x))
     println(Core.stdout, ustrip(m, sol6dof.pos.y))
     println(Core.stdout, ustrip(m, sol6dof.pos.z))
