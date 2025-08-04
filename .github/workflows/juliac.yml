@@ -31,3 +31,37 @@ jobs:
         working-directory: juliac
         run: |
           ./mainc
+
+      - name: Package artifacts
+        working-directory: juliac
+        run: |
+          mkdir -p ../artifacts
+          cp mainc ../artifacts/
+          cp libposeest.so ../artifacts/
+          cp -r julia ../artifacts/
+          cp libjulia.so* ../artifacts/ 2>/dev/null || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: juliac-build
+          path: artifacts/
+
+  test-without-julia:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: juliac-build
+          path: artifacts/
+
+      - name: Make executable runnable
+        run: |
+          chmod +x artifacts/mainc
+
+      - name: Test executable without Julia
+        run: |
+          cd artifacts
+          ./mainc
