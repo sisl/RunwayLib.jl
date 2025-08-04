@@ -7,8 +7,6 @@ noise models.
 """
 
 using StaticArrays: MVector
-# using LinearAlgebra: cholesky, Diagonal
-
 
 abstract type AbstractPoseOptimizationParams end
 
@@ -30,11 +28,6 @@ struct PoseOptimizationParams6DOF{
 end
 function PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel)
     cov = covmatrix(noisemodel)
-    # U = @match cov begin
-    #     # cholesky(Diagonal(SVector(...))) removes the 'static' part...
-    #     ::Diagonal => sqrt.(cov)
-    #     _ => cholesky(cov).U
-    # end
     U = cholesky(cov).U
     Linv = inv(U')
     return PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, Linv)
