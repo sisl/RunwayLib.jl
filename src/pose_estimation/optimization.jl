@@ -6,6 +6,9 @@ using SimpleNonlinearSolve.jl and integrating with ProbabilisticParameterEstimat
 noise models.
 """
 
+using StaticArrays: MVector
+# using LinearAlgebra: cholesky, Diagonal
+
 
 abstract type AbstractPoseOptimizationParams end
 
@@ -26,7 +29,14 @@ struct PoseOptimizationParams6DOF{
     Linv::M
 end
 function PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, noisemodel::NoiseModel)
-    Linv = inv(cholesky(covmatrix(noisemodel)).U')
+    cov = covmatrix(noisemodel)
+    # U = @match cov begin
+    #     # cholesky(Diagonal(SVector(...))) removes the 'static' part...
+    #     ::Diagonal => sqrt.(cov)
+    #     _ => cholesky(cov).U
+    # end
+    U = cholesky(cov).U
+    Linv = inv(U')
     return PoseOptimizationParams6DOF(runway_corners, observed_corners, camconfig, Linv)
 end
 
@@ -140,7 +150,7 @@ const PROB6DOF = let
         runway_corners, projections,
         CAMERA_CONFIG_OFFSET, noise_model
     )
-    NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(6), ps)
+    NonlinearLeastSquaresProblem{false}(POSEOPTFN, MVector{6}(rand(6)), ps)
 end
 const CACHE6DOF = init(PROB6DOF, ALG)
 
@@ -152,7 +162,7 @@ const PROB3DOF = let
         CAMERA_CONFIG_OFFSET, noise_model,
         true_rot
     )
-    NonlinearLeastSquaresProblem{false}(POSEOPTFN, rand(3), ps)
+    NonlinearLeastSquaresProblem{false}(POSEOPTFN, MVector{3}(rand(3)), ps)
 end
 const CACHE3DOF = init(PROB3DOF, ALG)
 
@@ -180,7 +190,7 @@ function estimatepose6dof(
         CAMCONF4COMP, noise_model
     )
 
-    reinit!(CACHE6DOF, collect(u₀); p = ps)
+    reinit!(CACHE6DOF, u₀; p = ps)
     solve!(CACHE6DOF)
     sol = (; u = CACHE6DOF.u, retcode = CACHE6DOF.retcode)
 
@@ -212,7 +222,7 @@ function estimatepose3dof(
         CAMCONF4COMP, noise_model, known_attitude
     )
 
-    reinit!(CACHE3DOF, collect(u₀); p = ps)
+    reinit!(CACHE3DOF, MVector{3}(u₀); p = ps)
     solve!(CACHE3DOF)
     sol = (; u = CACHE3DOF.u, retcode = CACHE3DOF.retcode)
 
