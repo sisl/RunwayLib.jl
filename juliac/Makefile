@@ -15,7 +15,7 @@ main: main.jl Project.toml Manifest.toml $(SRC)
 	JULIAC="./juliac/juliac.jl" ; \
 	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --output-exe main main.jl
 
-libposeest.so: lib.jl Project.toml Manifest.toml $(SRC) julia
+libposeest.so: lib.jl Project.toml Manifest.toml $(SRC)
 	JULIAC="./juliac/juliac.jl" ; \
 	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib libposeest lib.jl --export-abi abiinfo.json --relative-rpath
 
