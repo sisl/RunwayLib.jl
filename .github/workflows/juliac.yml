@@ -30,4 +30,4 @@ jobs:
       - name: Test executable
         working-directory: juliac
         run: |
-          ./main 1.0
+          ./mainc
