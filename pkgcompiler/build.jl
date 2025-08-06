@@ -8,4 +8,5 @@ PackageCompiler.create_library(
     filter_stdlibs = true,
     force = true,
     header_files = ["$(@__DIR__)/libposeest.h"],
+    include_lazy_artifacts = true,  # Enable artifact bundling
 )

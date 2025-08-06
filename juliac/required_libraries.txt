@@ -25,3 +25,9 @@ libmpfr.so.6
 libgomp.so.1
 libgmp.so.10
 libquadmath.so.0
+libgit2.so
+libcurl.so
+libssh2.so
+libnghttp2.so
+libssl.so
+libcrypto.so

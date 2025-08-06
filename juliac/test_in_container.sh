@@ -51,27 +51,28 @@ main() {
     log_info "Testing trimmed Julia binary in minimal container..."
     
     # Check if required files exist
-    if [[ ! -f "mainc" ]]; then
-        log_error "mainc binary not found. Please run 'make mainc' first."
+    if [[ ! -f "main" ]]; then
+        log_error "main binary not found. Please run 'make mainc' first."
         exit 1
     fi
     
-    if [[ ! -f "libposeest.so" ]]; then
-        log_error "libposeest.so not found. Please run 'make libposeest.so' first."
+    if [[ ! -f "RunwayLibCompiled/lib/libposeest.so" ]]; then
+        log_error "RunwayLibCompiled/lib/libposeest.so not found. Please ensure libposeest.so is in RunwayLibCompiled/lib/"
         exit 1
     fi
     
-    if [[ ! -d "julia" ]]; then
-        log_error "julia/ directory not found. Please run 'make julia-clean' first."
+    if [[ ! -d "RunwayLibCompiled" ]]; then
+        log_error "RunwayLibCompiled/ directory not found. Please ensure the bundle is properly created."
         exit 1
     fi
     
     log_info "Creating minimal container with glibc..."
     
-    # Create container with minimal Debian image (has glibc)
+    # Create container with minimal Debian image (has glibc) - NO NETWORK ACCESS
     if [[ "$CONTAINER_CMD" == "podman" ]]; then
         $CONTAINER_CMD run -d --name "$CONTAINER_NAME" \
             --rm \
+            --network=none \
             -v "$(pwd):$WORK_DIR:ro" \
             -w "$WORK_DIR" \
             "$IMAGE_NAME" \
@@ -79,6 +80,7 @@ main() {
     else
         $CONTAINER_CMD run -d --name "$CONTAINER_NAME" \
             --rm \
+            --network=none \
             -v "$(pwd):$WORK_DIR:ro" \
             -w "$WORK_DIR" \
             "$IMAGE_NAME" \
@@ -97,7 +99,8 @@ main() {
     container_exec uname -a
     container_exec ls -la /lib64/
     
-    # Note: Using self-contained Julia bundle - no package installation needed
+    # All libraries (including SSL/crypto) are now bundled - no system packages needed!
+    log_info "Using fully self-contained bundle - no system dependencies required"
     
     # Copy files to a writable location in container
     log_info "Setting up test environment in container..."
@@ -110,11 +113,11 @@ main() {
     container_exec ldd /tmp/juliatest/mainc
     
     log_info "Checking Julia runtime libraries..."
-    container_exec ldd /tmp/juliatest/libposeest.so
+    container_exec ldd /tmp/juliatest/RunwayLibCompiled/lib/libposeest.so
     
     # Test if libraries can be loaded
     log_info "Testing library loading..."
-    container_exec bash -c "cd /tmp/juliatest && LD_LIBRARY_PATH=.:julia ./mainc" || {
+    container_exec bash -c "cd /tmp/juliatest && JULIA_DEPOT_PATH=/tmp/juliatest/RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc" || {
         log_error "Binary execution failed"
         
         # Debug information
@@ -138,7 +141,7 @@ main() {
     
     # Test performance (basic)
     log_info "Running performance test..."
-    time_output=$(container_exec bash -c "cd /tmp/juliatest && time -p LD_LIBRARY_PATH=.:julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
+    time_output=$(container_exec bash -c "cd /tmp/juliatest && time -p JULIA_DEPOT_PATH=/tmp/juliatest/RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
     echo "$time_output"
 }
 
