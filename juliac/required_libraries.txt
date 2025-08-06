@@ -19,3 +19,9 @@ libldl.so.3.3.2
 libbtf.so.2.3.2
 libopenblas64_.0.3.29.so
 libopenblas64_.so
+libatomic.so.1
+libpcre2-8.so
+libmpfr.so.6
+libgomp.so.1
+libgmp.so.10
+libquadmath.so.0
