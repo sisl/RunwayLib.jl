@@ -1,52 +1,76 @@
 JULIA ?= $(shell which julia)
 SRCDIR = ../src
 SRC = $(shell find $(SRCDIR) -name "*.jl")
-
 CC = gcc
+
 CFLAGS = -Wall -O2
-RPATH_FLAGS = -Wl,-rpath,\$$ORIGIN -Wl,-rpath,\$$ORIGIN/julia
-LDFLAGS = -L. -Ljulia
+COMPILED_DIR = RunwayLibCompiled
+LIB_DIR = $(COMPILED_DIR)/lib
+INCLUDE_DIR = $(COMPILED_DIR)/include
+SHARE_DIR = $(COMPILED_DIR)/share
+RPATH_FLAGS = -Wl,-rpath,\$$ORIGIN/$(LIB_DIR) -Wl,-rpath,\$$ORIGIN/$(LIB_DIR)/julia
+LDFLAGS = -L$(LIB_DIR) -L$(LIB_DIR)/julia
 LIBS = -lposeest -ljulia
 
-run: mainc julia/.cleaned
-	./mainc
+run: mainc
+	JULIA_DEPOT_PATH=$(SHARE_DIR)/julia ./mainc
 
-main: main.jl Project.toml Manifest.toml $(SRC)
-	JULIAC="./juliac/juliac.jl" ; \
-	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --output-exe main main.jl
+mainc: main.c $(INCLUDE_DIR)/libposeest.h $(LIB_DIR)
+	$(CC) $(CFLAGS) $(RPATH_FLAGS) -I$(INCLUDE_DIR) -o mainc main.c $(LDFLAGS) $(LIBS) -g
 
-libposeest.so: lib.jl Project.toml Manifest.toml $(SRC)
+$(LIB_DIR)/libposeest.so: lib.jl Project.toml Manifest.toml $(SRC)
+	@mkdir -p $(LIB_DIR)
 	JULIAC="./juliac/juliac.jl" ; \
-	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib libposeest lib.jl --export-abi abiinfo.json --relative-rpath
+	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib $(LIB_DIR)/libposeest lib.jl --export-abi abiinfo.json --relative-rpath
+
+libposeest.so: $(LIB_DIR)/libposeest.so
 
 Manifest.toml: Project.toml ../Project.toml
 	$(JULIA) --project=. -e 'using Pkg; Pkg.instantiate()'
 	@touch $@ # Pkg.instantiate doesn't update the mtime if there are no changes
 
-mainc: main.c libposeest.h libposeest.so julia
-	gcc -Wall -O2 -Wl,-rpath='$$ORIGIN' -Wl,-rpath='$$ORIGIN/julia' -o mainc main.c -L. -Ljulia -lposeest -ljulia
+# Create include directory with header file
+$(INCLUDE_DIR)/libposeest.h: libposeest.h
+	@mkdir -p $(INCLUDE_DIR)
+	cp libposeest.h $(INCLUDE_DIR)/
 
-julia/.installed:
+# Create share directory 
+$(SHARE_DIR): share
+	@mkdir -p $(COMPILED_DIR)
+	cp -r share $(SHARE_DIR)
+
+# Copy main Julia libraries to lib directory
+$(LIB_DIR): $(LIB_DIR)/.cleaned $(LIB_DIR)/libposeest.so
+	@echo "Copying main Julia libraries to $(LIB_DIR)..."
+	cp libjulia.so* $(LIB_DIR)/ 2>/dev/null || true
+
+# Complete bundle target
+bundle: $(LIB_DIR) $(INCLUDE_DIR)/libposeest.h $(SHARE_DIR) $(LIB_DIR)/libposeest.so
+	@echo "RunwayLibCompiled bundle created successfully"
+	@echo "Bundle size: $$(du -sh $(COMPILED_DIR) | cut -f1)"
+
+$(LIB_DIR)/.installed:
+	@echo "Creating directory structure..."
+	@mkdir -p $(LIB_DIR)
 	@echo "Copying Julia libraries..."
 	JULIA_LIB_DIR=$$($(JULIA) -e "print(joinpath(Sys.BINDIR, \"..\", \"lib\"))"); \
-	cp -r "$$JULIA_LIB_DIR"/* .
-	@touch julia/.installed
-	@echo "Julia libraries installed to current directory"
+	cp -r "$$JULIA_LIB_DIR"/* $(LIB_DIR)
+	@touch $(LIB_DIR)/.installed
+	@echo "Julia libraries installed to $(LIB_DIR)"
 
-julia/.cleaned: julia/.installed required_libraries.txt
-	@echo "Cleaning julia/ directory based on required_libraries.txt"
-	@echo "Before cleanup: $$(du -sh julia/ | cut -f1)"
-	cd julia && for file in *.so*; do [ -f "$$file" ] && stem=$$(echo "$$file" | sed 's/\.so.*/.so/') && ! grep -q "$$stem" ../required_libraries.txt && rm -f "$$file" || true; done
-	@echo "After cleanup: $$(du -sh julia/ | cut -f1)"
-	@touch julia/.cleaned
-
-
-julia: julia/.installed
-
-julia-clean: julia/.cleaned
+$(LIB_DIR)/.cleaned: $(LIB_DIR)/.installed required_libraries.txt
+	@echo "Cleaning $(LIB_DIR)/julia directory based on required_libraries.txt"
+	@echo "Before cleanup: $$(du -sh $(LIB_DIR)/ | cut -f1)"
+	cd $(LIB_DIR)/julia && for file in *.so*; do [ -f "$$file" ] && stem=$$(echo "$$file" | sed 's/\.so.*/.so/') && ! grep -q "$$stem" ../../../required_libraries.txt && rm -f "$$file" || true; done
+	@echo "After cleanup: $$(du -sh $(LIB_DIR)/julia/ | cut -f1)"
+	@touch $(LIB_DIR)/.cleaned
 
 
-.PHONY: clean run install-julialibs julia-clean
+julia: $(LIB_DIR)/.installed
+
+julia-clean: $(LIB_DIR)/.cleaned
+
+.PHONY: clean run bundle julia-clean
 
 clean:
-	-rm -rf main mainc libposeest.so Manifest.toml julia abiinfo.json libjulia.so*
+	-rm -rf main mainc libposeest.so Manifest.toml julia abiinfo.json libjulia.so* $(COMPILED_DIR)
