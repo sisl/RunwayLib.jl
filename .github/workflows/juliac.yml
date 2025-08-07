@@ -41,9 +41,7 @@ jobs:
         run: |
           mkdir -p ../artifacts
           cp mainc ../artifacts/
-          cp libposeest.so ../artifacts/
-          cp -r julia ../artifacts/
-          cp libjulia.so* ../artifacts/ 2>/dev/null || true
+          cp -r RunwayLibCompiled ../artifacts/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
