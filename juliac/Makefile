@@ -12,18 +12,16 @@ RPATH_FLAGS = -Wl,-rpath,\$$ORIGIN/$(LIB_DIR) -Wl,-rpath,\$$ORIGIN/$(LIB_DIR)/ju
 LDFLAGS = -L$(LIB_DIR) -L$(LIB_DIR)/julia
 LIBS = -lposeest -ljulia
 
-run: mainc
+run: mainc bundle
 	JULIA_DEPOT_PATH=$(SHARE_DIR)/julia ./mainc
 
 mainc: main.c $(INCLUDE_DIR)/libposeest.h $(LIB_DIR)
-	$(CC) $(CFLAGS) $(RPATH_FLAGS) -I$(INCLUDE_DIR) -o mainc main.c $(LDFLAGS) $(LIBS) -g
+	$(CC) $(CFLAGS) $(RPATH_FLAGS) -I$(INCLUDE_DIR) -o mainc main.c $(LDFLAGS) $(LIBS)
 
 $(LIB_DIR)/libposeest.so: lib.jl Project.toml Manifest.toml $(SRC)
 	@mkdir -p $(LIB_DIR)
 	JULIAC="./juliac/juliac.jl" ; \
 	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib $(LIB_DIR)/libposeest lib.jl --export-abi abiinfo.json --relative-rpath
-
-libposeest.so: $(LIB_DIR)/libposeest.so
 
 Manifest.toml: Project.toml ../Project.toml
 	$(JULIA) --project=. -e 'using Pkg; Pkg.instantiate()'
@@ -34,15 +32,12 @@ $(INCLUDE_DIR)/libposeest.h: libposeest.h
 	@mkdir -p $(INCLUDE_DIR)
 	cp libposeest.h $(INCLUDE_DIR)/
 
-# Create share directory 
+# Create share directory
 $(SHARE_DIR): share
 	@mkdir -p $(COMPILED_DIR)
 	cp -r share $(SHARE_DIR)
 
-# Copy main Julia libraries to lib directory
 $(LIB_DIR): $(LIB_DIR)/.cleaned $(LIB_DIR)/libposeest.so
-	@echo "Copying main Julia libraries to $(LIB_DIR)..."
-	cp libjulia.so* $(LIB_DIR)/ 2>/dev/null || true
 
 # Complete bundle target
 bundle: $(LIB_DIR) $(INCLUDE_DIR)/libposeest.h $(SHARE_DIR) $(LIB_DIR)/libposeest.so
@@ -61,16 +56,18 @@ $(LIB_DIR)/.installed:
 $(LIB_DIR)/.cleaned: $(LIB_DIR)/.installed required_libraries.txt
 	@echo "Cleaning $(LIB_DIR)/julia directory based on required_libraries.txt"
 	@echo "Before cleanup: $$(du -sh $(LIB_DIR)/ | cut -f1)"
-	cd $(LIB_DIR)/julia && for file in *.so*; do [ -f "$$file" ] && stem=$$(echo "$$file" | sed 's/\.so.*/.so/') && ! grep -q "$$stem" ../../../required_libraries.txt && rm -f "$$file" || true; done
+	cd $(LIB_DIR)/julia && \
+	for file in *.so*; do \
+		[ -f "$$file" ] && \
+		stem=$$(echo "$$file" | sed 's/\.so.*/.so/') && \
+		! grep -q "$$stem" ../../../required_libraries.txt && \
+		rm -f "$$file" || true; \
+	done
 	@echo "After cleanup: $$(du -sh $(LIB_DIR)/julia/ | cut -f1)"
 	@touch $(LIB_DIR)/.cleaned
 
 
-julia: $(LIB_DIR)/.installed
-
-julia-clean: $(LIB_DIR)/.cleaned
-
-.PHONY: clean run bundle julia-clean
+.PHONY: clean run bundle
 
 clean:
-	-rm -rf main mainc libposeest.so Manifest.toml julia abiinfo.json libjulia.so* $(COMPILED_DIR)
+	-rm -rf mainc Manifest.toml abiinfo.json $(COMPILED_DIR)
