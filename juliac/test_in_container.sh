@@ -103,7 +103,7 @@ main() {
     
     # Test if libraries can be loaded
     log_info "Testing library loading..."
-    if ! podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc"; then
+    if ! podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia ./mainc"; then
         log_error "Binary execution failed"
         
         # Debug information
@@ -130,7 +130,7 @@ main() {
     
     # Test performance (basic)
     log_info "Running performance test..."
-    time_output=$(podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && time -p JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
+    time_output=$(podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && time -p JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
     echo "$time_output"
 }
 
