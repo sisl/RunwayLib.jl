@@ -16,14 +16,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check if docker is available (fallback to podman)
-
-if command -v podman &> /dev/null; then
-    CONTAINER_CMD="podman"
-elif command -v docker &> /dev/null; then
-    CONTAINER_CMD="docker"
-else
-    echo -e "${RED}[ERROR]${NC} Neither Docker nor Podman found. Please install one of them first."
+# Check if podman is available
+if ! command -v podman &> /dev/null; then
+    echo -e "${RED}[ERROR]${NC} Podman not found. Please install podman first."
     exit 1
 fi
 
@@ -41,7 +36,7 @@ log_error() {
 
 cleanup() {
     log_info "Cleaning up container..."
-    $CONTAINER_CMD rm -f "$CONTAINER_NAME" 2>/dev/null || true
+    podman rm -f "$CONTAINER_NAME" 2>/dev/null || true
 }
 
 # Trap to ensure cleanup on exit
@@ -50,9 +45,15 @@ trap cleanup EXIT
 main() {
     log_info "Testing trimmed Julia binary in minimal container..."
     
+    # Check if we're in the right directory
+    if [[ ! -f "Makefile" ]] || [[ ! -f "main.c" ]]; then
+        log_error "Script must be run from the juliac directory (containing Makefile and main.c)"
+        exit 1
+    fi
+    
     # Check if required files exist
-    if [[ ! -f "main" ]]; then
-        log_error "main binary not found. Please run 'make mainc' first."
+    if [[ ! -f "mainc" ]]; then
+        log_error "mainc binary not found. Please run 'make run' or 'make mainc' first."
         exit 1
     fi
     
@@ -69,83 +70,71 @@ main() {
     log_info "Creating minimal container with glibc..."
     
     # Create container with minimal Debian image (has glibc) - NO NETWORK ACCESS
-    if [[ "$CONTAINER_CMD" == "podman" ]]; then
-        $CONTAINER_CMD run -d --name "$CONTAINER_NAME" \
-            --rm \
-            --network=none \
-            -v "$(pwd):$WORK_DIR:ro" \
-            -w "$WORK_DIR" \
-            "$IMAGE_NAME" \
-            sleep infinity
-    else
-        $CONTAINER_CMD run -d --name "$CONTAINER_NAME" \
-            --rm \
-            --network=none \
-            -v "$(pwd):$WORK_DIR:ro" \
-            -w "$WORK_DIR" \
-            "$IMAGE_NAME" \
-            sleep infinity
-    fi
+    podman run -d --name "$CONTAINER_NAME" \
+        --rm \
+        --network=none \
+        -v "$(pwd):$WORK_DIR:ro" \
+        -w "$WORK_DIR" \
+        "$IMAGE_NAME" \
+        sleep infinity
     
     log_info "Container created: $CONTAINER_NAME"
     
-    # Function to run exec command
-    container_exec() {
-        $CONTAINER_CMD exec "$CONTAINER_NAME" "$@"
-    }
-    
     # Check what's available in the container
     log_info "Checking container environment..."
-    container_exec uname -a
-    container_exec ls -la /lib64/
+    podman exec "$CONTAINER_NAME" uname -a
+    podman exec "$CONTAINER_NAME" ls -la /lib64/
     
     # All libraries (including SSL/crypto) are now bundled - no system packages needed!
     log_info "Using fully self-contained bundle - no system dependencies required"
     
     # Copy files to a writable location in container
     log_info "Setting up test environment in container..."
-    container_exec mkdir -p /tmp/juliatest
-    container_exec bash -c "cp -r $WORK_DIR/* /tmp/juliatest/"
-    container_exec chmod +x /tmp/juliatest/mainc
+    podman exec "$CONTAINER_NAME" mkdir -p /tmp/juliatest
+    podman exec "$CONTAINER_NAME" bash -c "cp -r $WORK_DIR/* /tmp/juliatest/"
+    podman exec "$CONTAINER_NAME" chmod +x /tmp/juliatest/mainc
     
     # Test library dependencies
     log_info "Checking library dependencies..."
-    container_exec ldd /tmp/juliatest/mainc
+    podman exec "$CONTAINER_NAME" ldd /tmp/juliatest/mainc
     
     log_info "Checking Julia runtime libraries..."
-    container_exec ldd /tmp/juliatest/RunwayLibCompiled/lib/libposeest.so
+    podman exec "$CONTAINER_NAME" ldd /tmp/juliatest/RunwayLibCompiled/lib/libposeest.so
     
     # Test if libraries can be loaded
     log_info "Testing library loading..."
-    container_exec bash -c "cd /tmp/juliatest && JULIA_DEPOT_PATH=/tmp/juliatest/RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc" || {
+    if ! podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc"; then
         log_error "Binary execution failed"
         
         # Debug information
         log_warn "Debug: Checking file permissions..."
-        container_exec ls -la /tmp/juliatest/
+        podman exec "$CONTAINER_NAME" ls -la /tmp/juliatest/mainc
         
-        log_warn "Debug: Checking library path..."
-        container_exec bash -c "cd /tmp/juliatest && find . -name '*.so*' | head -10"
+        log_warn "Debug: Checking library structure..."
+        podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && ls -la RunwayLibCompiled/lib/ | head -5"
         
-        log_warn "Debug: Checking missing libraries..."
-        container_exec bash -c "cd /tmp/juliatest && ldd mainc | grep 'not found'" || true
+        log_warn "Debug: Checking missing system libraries..."
+        podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && ldd mainc | grep 'not found'" || true
+        
+        log_warn "Debug: Checking RPATH..."
+        podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && objdump -x mainc | grep RPATH" || true
         
         return 1
-    }
+    fi
     
     log_info "✅ Test passed! The trimmed Julia binary runs successfully in minimal container."
     
     # Show container size and resource usage
     log_info "Container stats:"
-    container_exec du -sh /tmp/juliatest/
+    podman exec "$CONTAINER_NAME" du -sh /tmp/juliatest/
     
     # Test performance (basic)
     log_info "Running performance test..."
-    time_output=$(container_exec bash -c "cd /tmp/juliatest && time -p JULIA_DEPOT_PATH=/tmp/juliatest/RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
+    time_output=$(podman exec "$CONTAINER_NAME" bash -c "cd /tmp/juliatest && time -p JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia LD_LIBRARY_PATH=RunwayLibCompiled/lib:RunwayLibCompiled/lib/julia ./mainc 2>&1" | grep -E '^(real|user|sys)')
     echo "$time_output"
 }
 
-log_info "Using container runtime: $CONTAINER_CMD"
+log_info "Using container runtime: podman"
 
 # Run main function
 main "$@"
