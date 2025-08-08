@@ -5,6 +5,7 @@ authors = ["Romeo Valentin <romeov@stanford.edu>"]
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DiffEqBase = "2b5f629d-d688-5b77-993f-72d75c75574e"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -28,12 +29,11 @@ XLSX = "fdbf4ff8-1666-58a4-91e7-1b58723a45e0"
 [sources]
 ForwardDiff = {rev = "rv/remove-quote-assert-string-interpolation", url = "https://github.com/RomeoV/ForwardDiff.jl.git"}
 LinearSolve = {rev = "rv/allow-mmatrix-cache", url = "https://github.com/RomeoV/LinearSolve.jl"}
-Polyester = {rev = "master", url = "https://github.com/RomeoV/Polyester.jl"}
-PolyesterWeave = {rev = "main", url = "https://github.com/RomeoV/PolyesterWeave.jl"}
 SciMLBase = {rev = "as/fix-jet-opt", url = "https://github.com/AayushSabharwal/SciMLBase.jl"}
 
 [compat]
 ADTypes = "1.16.0"
+CPUSummary = "0.2.7"
 DiffEqBase = "6.179.0"
 ForwardDiff = "1.0.1"
 LinearAlgebra = "1.11.0,1.12.0"
