@@ -66,4 +66,4 @@ jobs:
       - name: Test executable without Julia
         run: |
           cd artifacts
-          ./mainc
+          JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia ./mainc
