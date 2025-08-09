@@ -52,7 +52,7 @@ function worldpoint_jl_to_c(wpt::WorldPoint)
 end
 
 function projectionpoint_c_to_jl(ppt_c::ProjectionPoint_C)
-    return ProjectionPoint{Float64, :offset}(ppt_c.x * 1pixel, ppt_c.y * 1pixel)
+    return ProjectionPoint{Float64, :offset}(ppt_c.x, ppt_c.y)
 end
 
 function projectionpoint_jl_to_c(ppt::ProjectionPoint)
