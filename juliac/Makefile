@@ -18,10 +18,10 @@ run: mainc bundle
 mainc: main.c $(INCLUDE_DIR)/libposeest.h $(LIB_DIR)
 	$(CC) $(CFLAGS) $(RPATH_FLAGS) -I$(INCLUDE_DIR) -o mainc main.c $(LDFLAGS) $(LIBS)
 
-$(LIB_DIR)/libposeest.so: lib.jl Project.toml Manifest.toml $(SRC)
+$(LIB_DIR)/libposeest.so: loadrunwaylib.jl Project.toml Manifest.toml $(SRC)
 	@mkdir -p $(LIB_DIR)
 	JULIAC="./juliac/juliac.jl" ; \
-	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib $(LIB_DIR)/libposeest lib.jl --export-abi abiinfo.json --relative-rpath
+	$(JULIA) --project=. --depwarn=error "$$JULIAC" --experimental --trim=unsafe-warn --compile-ccallable --output-lib $(LIB_DIR)/libposeest loadrunwaylib.jl --export-abi abiinfo.json --relative-rpath
 
 Manifest.toml: Project.toml ../Project.toml
 	$(JULIA) --project=. -e 'using Pkg; Pkg.instantiate()'
