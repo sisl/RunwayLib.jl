@@ -67,6 +67,7 @@ include("camera_model/errors.jl")
 include("pose_estimation/optimization.jl")
 include("pose_estimation/errors.jl")
 include("entrypoints.jl")
+include("c_api.jl")
 
 # Export pose estimation entrypoints and types
 export estimatepose6dof, estimatepose3dof, pose_optimization
