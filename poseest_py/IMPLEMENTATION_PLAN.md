@@ -107,15 +107,55 @@ The Julia library exports these key functions:
 
 ## Next Steps
 
-1. **Resolve Julia Units Issue**: Fix the units conversion error in enhanced API functions
-2. **CI/CD Pipeline**: Set up GitHub Actions to build Julia library and create Python wheels
-3. **Cross-Platform Testing**: Validate on macOS and Windows with proper library bundling
-4. **PyPI Distribution**: Publish package with automated binary wheel creation
-5. **Advanced Documentation**: Add Jupyter notebooks and performance benchmarks
+### 🎯 **Immediate Priority: C Interface Testing**
+Now that the C API functions are properly organized in `src/c_api.jl`, we can create comprehensive Julia tests:
 
-## Current Status: ✅ **MISSION ACCOMPLISHED**
+1. **Create `test/test_c_api.jl`**: 
+   - Unit tests for conversion functions (`worldpoint_c_to_jl`, `projectionpoint_c_to_jl`, etc.)
+   - Tests for `get_camera_config()` parameter handling
+   - Error code validation tests
+   - Mock tests for `@ccallable` functions without full library compilation
 
-**The Python package implementation is complete and successful!** 
+2. **Create `test/test_integration.jl`**:
+   - End-to-end tests calling actual `@ccallable` functions
+   - Test data consistency between Julia native functions and C API
+   - Performance comparison tests
+   - Memory safety tests with invalid pointers
+
+3. **Create `test/test_units_debugging.jl`**:
+   - Focused tests to isolate and fix the units conversion issues
+   - Test different ProjectionPoint coordinate systems (:offset vs :centered)
+   - Validate units handling in optimization parameters
+
+### 🚀 **Future Enhancements:**
+
+4. **Resolve Julia Units Issue**: Use new tests to fix the units conversion error in enhanced API functions
+5. **CI/CD Pipeline**: Set up GitHub Actions to build Julia library and create Python wheels
+6. **Cross-Platform Testing**: Validate on macOS and Windows with proper library bundling
+7. **PyPI Distribution**: Publish package with automated binary wheel creation
+8. **Advanced Documentation**: Add Jupyter notebooks and performance benchmarks
+
+## Recent Update: ✅ **JULIA CODE REFACTORING COMPLETE**
+
+**Successfully refactored Julia code structure for better testing and maintainability:**
+
+### ✅ **Refactoring Accomplished (Latest):**
+- **Enhanced C API moved** from `juliac/lib.jl` to `src/c_api.jl`
+- **Minimal entry point** created at `juliac/loadrunwaylib.jl` (just `using RunwayLib`)
+- **Makefile updated** to compile `loadrunwaylib.jl` instead of `lib.jl`
+- **All @ccallable functions** now properly organized in `src/` directory
+- **Compilation verified** with all symbols exported correctly
+- **Python wrapper still working** perfectly after refactoring
+
+### ✅ **Benefits Achieved:**
+- **Better testing capability**: Can now write normal Julia tests for C API functions
+- **Cleaner code structure**: Enhanced C API is part of main library, not duplicated
+- **Improved maintainability**: All related code lives together in `src/c_api.jl`
+- **No breaking changes**: All functionality preserved and verified
+
+## Current Status: ✅ **MISSION ACCOMPLISHED + ENHANCED**
+
+**The Python package implementation is complete and the Julia code structure is optimized!** 
 
 ✅ **Working Features:**
 - Complete Python wrapper with Pythonic API
@@ -123,6 +163,7 @@ The Julia library exports these key functions:
 - Successful integration with Julia-compiled C library  
 - Comprehensive test suite validating all components
 - Ready for distribution via pip/PyPI
+- **NEW**: Refactored Julia structure enabling better testing
 
 🔧 **Minor Issue:** Enhanced API has Julia units conversion bug (not Python wrapper issue)
 
