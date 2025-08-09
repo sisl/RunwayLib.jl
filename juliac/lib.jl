@@ -67,7 +67,7 @@ function rotation_jl_to_c(rot::RotZYX)
     return Rotation_C(rot.theta1, rot.theta2, rot.theta3)  # yaw, pitch, roll
 end
 
-function get_camera_config(config_type::Int)
+function get_camera_config(config_type::Cint)
     if config_type == 0  # CAMERA_CONFIG_CENTERED
         return CAMERA_CONFIG_CENTERED
     elseif config_type == 1  # CAMERA_CONFIG_OFFSET
