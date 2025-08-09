@@ -1,3 +1,20 @@
 .aider*
 Manifest.toml
 main
+
+# Compiled Julia/C libraries and artifacts
+juliac/RunwayLibCompiled/
+juliac/mainc
+juliac/abiinfo.json
+juliac/julia/
+juliac/LocalPreferences.toml
+juliac/lib_*.jl
+pkgcompiler/RunwayLibCompiled/
+pkgcompiler/main
+pkgcompiler/share/
+
+# Python package build artifacts
+poseest_py/build/
+poseest_py/dist/
+poseest_py/*.egg-info/
+poseest_py/poseest/native/RunwayLibCompiled/
