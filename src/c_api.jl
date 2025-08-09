@@ -50,7 +50,7 @@ function worldpoint_jl_to_c(wpt::WorldPoint)
 end
 
 function projectionpoint_c_to_jl(ppt_c::ProjectionPoint_C)
-    return ProjectionPoint{Float64, :offset}(ppt_c.x, ppt_c.y)
+    return ProjectionPoint(:offset, ppt_c.x * px, ppt_c.y * px)
 end
 
 function projectionpoint_jl_to_c(ppt::ProjectionPoint)
@@ -65,7 +65,7 @@ function rotation_jl_to_c(rot::RotZYX)
     return Rotation_C(rot.theta1, rot.theta2, rot.theta3)  # yaw, pitch, roll
 end
 
-function get_camera_config(config_type::Cint)
+function get_camera_config(config_type::Union{Int,Cint})
     if config_type == 0  # CAMERA_CONFIG_CENTERED
         return CAMERA_CONFIG_CENTERED
     elseif config_type == 1  # CAMERA_CONFIG_OFFSET
@@ -88,7 +88,7 @@ function get_error_message_impl(error_code::Int)
 end
 
 # Store error messages in a global to ensure they persist
-const ERROR_MESSAGES = Dict{Int, Ptr{UInt8}}()
+const ERROR_MESSAGES = Dict{Int,Ptr{UInt8}}()
 
 Base.@ccallable function get_error_message(error_code::Cint)::Ptr{UInt8}
     if !haskey(ERROR_MESSAGES, error_code)
@@ -126,7 +126,7 @@ Base.@ccallable function estimate_pose_6dof(
         if runway_corners == C_NULL || projections == C_NULL || result == C_NULL
             return POSEEST_ERROR_INVALID_INPUT
         end
-        
+
         if num_points < 4
             return POSEEST_ERROR_INSUFFICIENT_POINTS
         end
@@ -134,17 +134,17 @@ Base.@ccallable function estimate_pose_6dof(
         # Convert C arrays to Julia arrays
         corners_c = unsafe_wrap(Array, runway_corners, num_points)
         projs_c = unsafe_wrap(Array, projections, num_points)
-        
+
         # Convert to Julia types
         jl_corners = [worldpoint_c_to_jl(corner) for corner in corners_c]
         jl_projections = [projectionpoint_c_to_jl(proj) for proj in projs_c]
-        
+
         # Get camera configuration
         camconfig = get_camera_config(camera_config)
-        
+
         # Perform pose estimation
         sol = estimatepose6dof(jl_corners, jl_projections, camconfig)
-        
+
         # Convert result back to C struct
         result_c = PoseEstimate_C(
             worldpoint_jl_to_c(sol.pos),
@@ -154,12 +154,12 @@ Base.@ccallable function estimate_pose_6dof(
             0.0,  # residual_norm
             1     # converged (assume success if no exception)
         )
-        
+
         # Write result to output pointer
         unsafe_store!(result, result_c)
-        
+
         return POSEEST_SUCCESS
-        
+
     catch e
         println(stderr, "Error in estimate_pose_6dof: $e")
         if isa(e, BoundsError) || isa(e, ArgumentError)
@@ -184,7 +184,7 @@ Base.@ccallable function estimate_pose_3dof(
         if runway_corners == C_NULL || projections == C_NULL || known_rotation == C_NULL || result == C_NULL
             return POSEEST_ERROR_INVALID_INPUT
         end
-        
+
         if num_points < 3
             return POSEEST_ERROR_INSUFFICIENT_POINTS
         end
@@ -193,18 +193,18 @@ Base.@ccallable function estimate_pose_3dof(
         corners_c = unsafe_wrap(Array, runway_corners, num_points)
         projs_c = unsafe_wrap(Array, projections, num_points)
         known_rot_c = unsafe_load(known_rotation)
-        
+
         # Convert to Julia types
         jl_corners = [worldpoint_c_to_jl(corner) for corner in corners_c]
         jl_projections = [projectionpoint_c_to_jl(proj) for proj in projs_c]
         jl_rotation = rotation_c_to_jl(known_rot_c)
-        
+
         # Get camera configuration
         camconfig = get_camera_config(camera_config)
-        
+
         # Perform pose estimation
         sol = estimatepose3dof(jl_corners, jl_projections, jl_rotation, camconfig)
-        
+
         # Convert result back to C struct
         result_c = PoseEstimate_C(
             worldpoint_jl_to_c(sol.pos),
@@ -212,12 +212,12 @@ Base.@ccallable function estimate_pose_3dof(
             0.0,  # residual_norm
             1     # converged
         )
-        
+
         # Write result to output pointer
         unsafe_store!(result, result_c)
-        
+
         return POSEEST_SUCCESS
-        
+
     catch e
         println(stderr, "Error in estimate_pose_3dof: $e")
         if isa(e, BoundsError) || isa(e, ArgumentError)
@@ -241,31 +241,31 @@ Base.@ccallable function project_point(
         if camera_position == C_NULL || camera_rotation == C_NULL || world_point == C_NULL || result == C_NULL
             return POSEEST_ERROR_INVALID_INPUT
         end
-        
+
         # Load C structs
         cam_pos_c = unsafe_load(camera_position)
         cam_rot_c = unsafe_load(camera_rotation)
         world_pt_c = unsafe_load(world_point)
-        
+
         # Convert to Julia types
         jl_cam_pos = worldpoint_c_to_jl(cam_pos_c)
         jl_cam_rot = rotation_c_to_jl(cam_rot_c)
         jl_world_pt = worldpoint_c_to_jl(world_pt_c)
-        
+
         # Get camera configuration
         camconfig = get_camera_config(camera_config)
-        
+
         # Project point
         jl_projection = project(jl_cam_pos, jl_cam_rot, jl_world_pt, camconfig)
-        
+
         # Convert result back to C struct
         result_c = projectionpoint_jl_to_c(jl_projection)
-        
+
         # Write result to output pointer
         unsafe_store!(result, result_c)
-        
+
         return POSEEST_SUCCESS
-        
+
     catch e
         println(stderr, "Error in project_point: $e")
         if isa(e, BehindCameraException)
