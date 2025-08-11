@@ -5,6 +5,7 @@ using StaticArrays
 using Rotations
 using Unitful
 using Unitful.DefaultSymbols
+using JET
 
 @testset "C API" begin
     # Test data
@@ -46,6 +47,11 @@ using Unitful.DefaultSymbols
         # Function should not crash - accept either success or convergence error
         @test error_code == RunwayLib.POSEEST_SUCCESS
         @test result[].position * m ≈ true_pos rtol = 1e-2
+
+        @test_opt RunwayLib.estimate_pose_6dof(
+            pointer(runway_corners_), pointer(projections_),
+            Cint(length(runway_corners_)), RunwayLib.CAMERA_CONFIG_OFFSET_C, Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)
+        )
     end
 
     @testset "3DOF Pose Estimation @ccallable" begin
@@ -69,6 +75,12 @@ using Unitful.DefaultSymbols
         # Function should not crash - accept either success or convergence error
         @test error_code == RunwayLib.POSEEST_SUCCESS
         @test result[].position * m ≈ true_pos rtol = 1e-2
+
+        @test_opt RunwayLib.estimate_pose_3dof(
+            pointer(runway_corners_), pointer(projections_),
+            Cint(length(runway_corners_)), Base.unsafe_convert(Ptr{RunwayLib.RotYPRF64}, Ref(known_rot_c)),
+            RunwayLib.CAMERA_CONFIG_OFFSET_C, Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)
+        )
     end
 
     @testset "Point Projection @ccallable" begin
