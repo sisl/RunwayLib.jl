@@ -73,17 +73,9 @@ using Unitful.DefaultSymbols
 
     @testset "Point Projection @ccallable" begin
         # Create input structs
-        world_point = RunwayLib.WorldPointF64(
-            ustrip(m, runway_corners[1].x),
-            ustrip(m, runway_corners[1].y),
-            ustrip(m, runway_corners[1].z)
-        )
-        position = RunwayLib.WorldPointF64(
-            ustrip(m, true_pos.x),
-            ustrip(m, true_pos.y),
-            ustrip(m, true_pos.z)
-        )
-        rotation = RunwayLib.Rotation_C(true_rot.theta1, true_rot.theta2, true_rot.theta3)
+        world_point = runway_corners[1] .|> _ustrip(m)
+        position = true_pos .|> _ustrip(m)
+        rotation = Rotations.params(true_rot)
 
         # Allocate result
         result = Ref{RunwayLib.ProjectionPointF64}()
@@ -91,17 +83,17 @@ using Unitful.DefaultSymbols
         # Test projection
         error_code = RunwayLib.project_point(
             Base.unsafe_convert(Ptr{RunwayLib.WorldPointF64}, Ref(position)),
-            Base.unsafe_convert(Ptr{RunwayLib.Rotation_C}, Ref(rotation)),
+            Base.unsafe_convert(Ptr{RunwayLib.RotYPRF64}, Ref(rotation)),
             Base.unsafe_convert(Ptr{RunwayLib.WorldPointF64}, Ref(world_point)),
-            Cint(1), Base.unsafe_convert(Ptr{RunwayLib.ProjectionPointF64}, result)
+            RunwayLib.CAMERA_CONFIG_OFFSET_C, Base.unsafe_convert(Ptr{RunwayLib.ProjectionPointF64}, result)
         )
 
         @test error_code == RunwayLib.POSEEST_SUCCESS
 
         # Compare with direct Julia projection
         expected = project(true_pos, true_rot, runway_corners[1], camconfig)
-        @test abs(result[].x - ustrip(pixel, expected.x)) < 1.0
-        @test abs(result[].y - ustrip(pixel, expected.y)) < 1.0
+        @test abs(result[].x - ustrip(px, expected.x)) < 1.0
+        @test abs(result[].y - ustrip(px, expected.y)) < 1.0
     end
 
     @testset "Error Handling @ccallable" begin
