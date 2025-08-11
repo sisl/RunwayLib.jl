@@ -98,18 +98,18 @@ using Unitful.DefaultSymbols
 
     @testset "Error Handling @ccallable" begin
         # Test with insufficient points
-        world_points = [RunwayLib.WorldPointF64(0.0, 0.0, 0.0)]
-        projection_points = [RunwayLib.ProjectionPointF64(0.0, 0.0)]
+        world_points_ = [RunwayLib.WorldPointF64(0.0, 0.0, 0.0)]
+        projection_points_ = [RunwayLib.ProjectionPointF64(0.0, 0.0)]
         result = Ref{RunwayLib.PoseEstimate_C}()
 
         error_code = RunwayLib.estimate_pose_6dof(
-            pointer(world_points), pointer(projection_points),
-            Cint(1), Cint(1), Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)  # Only 1 point, need at least 4
+            pointer(world_points_), pointer(projection_points_),
+            Cint(1), RunwayLib.CAMERA_CONFIG_OFFSET_C, Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)  # Only 1 point, need at least 4
         )
         @test error_code == RunwayLib.POSEEST_ERROR_INSUFFICIENT_POINTS
 
         # Test error message function
-        msg_ptr = RunwayLib.get_error_message(Int64(error_code))
+        msg_ptr = RunwayLib.get_error_message(error_code)
         @test msg_ptr != C_NULL
 
         # Convert to string and check it's not empty
@@ -124,19 +124,17 @@ using Unitful.DefaultSymbols
 
         # Create C struct
         c_struct = RunwayLib.PoseEstimate_C(
-            RunwayLib.worldpoint_jl_to_c(julia_pos),
-            RunwayLib.rotation_jl_to_c(julia_rot),
+            julia_pos .|> _ustrip(m),
+            Rotations.params(julia_rot),
             1.5,  # residual_norm
             Cint(1)   # converged
         )
 
         # Test conversion back to Julia types
-        converted_pos = RunwayLib.worldpoint_c_to_jl(c_struct.position)
-        converted_rot = RunwayLib.rotation_c_to_jl(c_struct.rotation)
+        converted_pos = c_struct.position .* m
+        converted_rot = RotZYX(c_struct.rotation...)
 
-        @test converted_pos.x ≈ julia_pos.x
-        @test converted_pos.y ≈ julia_pos.y
-        @test converted_pos.z ≈ julia_pos.z
+        @test converted_pos ≈ julia_pos
         @test converted_rot.theta1 ≈ julia_rot.theta1
         @test converted_rot.theta2 ≈ julia_rot.theta2
         @test converted_rot.theta3 ≈ julia_rot.theta3

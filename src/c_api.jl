@@ -191,47 +191,35 @@ Base.@ccallable function project_point(
     camera_position::Ptr{WorldPointF64},
     camera_rotation::Ptr{RotYPRF64},
     world_point::Ptr{WorldPointF64},
-    camera_config::Cint,
+    camera_config::CAMERA_CONFIG_C,
     result::Ptr{ProjectionPointF64}
 )::Cint
-    try
-        # Validate inputs
-        if camera_position == C_NULL || camera_rotation == C_NULL || world_point == C_NULL || result == C_NULL
-            return POSEEST_ERROR_INVALID_INPUT
-        end
-
-        # Load C structs
-        cam_pos_c = unsafe_load(camera_position)
-        cam_rot_c = unsafe_load(camera_rotation)
-        world_pt_c = unsafe_load(world_point)
-
-        # Convert to Julia types
-        jl_cam_pos = worldpoint_c_to_jl(cam_pos_c)
-        jl_cam_rot = rotation_c_to_jl(cam_rot_c)
-        jl_world_pt = worldpoint_c_to_jl(world_pt_c)
-
-        # Get camera configuration
-        camconfig = get_camera_config(camera_config)
-
-        # Project point
-        jl_projection = project(jl_cam_pos, jl_cam_rot, jl_world_pt, camconfig)
-
-        # Convert result back to C struct
-        result_c = projectionpoint_jl_to_c(jl_projection)
-
-        # Write result to output pointer
-        unsafe_store!(result, result_c)
-
-        return POSEEST_SUCCESS
-
-    catch e
-        println(stderr, "Error in project_point: $e")
-        if isa(e, BehindCameraException)
-            return POSEEST_ERROR_BEHIND_CAMERA
-        elseif isa(e, BoundsError) || isa(e, ArgumentError)
-            return POSEEST_ERROR_INVALID_INPUT
-        else
-            return POSEEST_ERROR_NO_CONVERGENCE
-        end
+    # Validate inputs
+    if camera_position == C_NULL || camera_rotation == C_NULL || world_point == C_NULL || result == C_NULL
+        return POSEEST_ERROR_INVALID_INPUT
     end
+
+    # Load C structs
+    cam_pos_c = unsafe_load(camera_position)
+    cam_rot_c = unsafe_load(camera_rotation)
+    world_pt_c = unsafe_load(world_point)
+
+    # Convert to Julia types
+    jl_cam_pos = cam_pos_c .* 1m
+    jl_cam_rot = RotZYX(cam_rot_c[1], cam_rot_c[2], cam_rot_c[3])
+    jl_world_pt = world_pt_c .* 1m
+
+    # Get camera configuration
+    camconfig = get_camera_config(camera_config)
+
+    # Project point
+    jl_projection = project(jl_cam_pos, jl_cam_rot, jl_world_pt, camconfig)
+
+    # Convert result back to C struct
+    result_c = jl_projection .|> _ustrip(px)
+
+    # Write result to output pointer
+    unsafe_store!(result, result_c)
+
+    return POSEEST_SUCCESS
 end
