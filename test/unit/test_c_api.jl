@@ -33,14 +33,6 @@ using Unitful.DefaultSymbols
         # Create C structs for testing
         runway_corners_ = [corner .|> _ustrip(m) for corner in runway_corners]
         projections_ = [proj .|> _ustrip(px) for proj in projections]
-        # world_points = [
-        #     RunwayLib.WorldPointF64(ustrip(m, wp.x), ustrip(m, wp.y), ustrip(m, wp.z))
-        #     for wp in runway_corners
-        # ]
-        # projection_points = [
-        #     RunwayLib.ProjectionPointF64(ustrip(pixel, pp.x), ustrip(pixel, pp.y))
-        #     for pp in projections
-        # ]
 
         # Allocate result struct
         result = Ref{RunwayLib.PoseEstimate_C}()
@@ -58,30 +50,25 @@ using Unitful.DefaultSymbols
 
     @testset "3DOF Pose Estimation @ccallable" begin
         # Create C structs for testing
-        world_points = [
-            RunwayLib.WorldPointF64(ustrip(m, wp.x), ustrip(m, wp.y), ustrip(m, wp.z))
-            for wp in runway_corners
-        ]
-        projection_points = [
-            RunwayLib.ProjectionPointF64(ustrip(pixel, pp.x), ustrip(pixel, pp.y))
-            for pp in projections
-        ]
+        runway_corners_ = [corner .|> _ustrip(m) for corner in runway_corners]
+        projections_ = [proj .|> _ustrip(px) for proj in projections]
 
         # Allocate result struct
         result = Ref{RunwayLib.PoseEstimate_C}()
 
         # Create known rotation for 3DOF
-        known_rot_c = RunwayLib.rotation_jl_to_c(true_rot)
+        known_rot_c = Rotations.params(true_rot)
 
         # Test function call (may return NO_CONVERGENCE due to optimizer issue)
         error_code = RunwayLib.estimate_pose_3dof(
-            pointer(world_points), pointer(projection_points),
-            Cint(length(world_points)), Base.unsafe_convert(Ptr{RunwayLib.Rotation_C}, Ref(known_rot_c)),
-            Cint(1), Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)
+            pointer(runway_corners_), pointer(projections_),
+            Cint(length(runway_corners_)), Base.unsafe_convert(Ptr{RunwayLib.RotYPRF64}, Ref(known_rot_c)),
+            RunwayLib.CAMERA_CONFIG_OFFSET_C, Base.unsafe_convert(Ptr{RunwayLib.PoseEstimate_C}, result)
         )
 
         # Function should not crash - accept either success or convergence error
-        @test error_code == RunwayLib.POSEEST_SUCCESS || error_code == RunwayLib.POSEEST_ERROR_NO_CONVERGENCE
+        @test error_code == RunwayLib.POSEEST_SUCCESS
+        @test result[].position * m ≈ true_pos rtol = 1e-2
     end
 
     @testset "Point Projection @ccallable" begin

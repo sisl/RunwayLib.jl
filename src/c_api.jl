@@ -142,60 +142,48 @@ end
 
 # Enhanced 3DOF pose estimation
 Base.@ccallable function estimate_pose_3dof(
-    runway_corners::Ptr{WorldPointF64},
-    projections::Ptr{ProjectionPointF64},
+    runway_corners_::Ptr{WorldPointF64},
+    projections_::Ptr{ProjectionPointF64},
     num_points::Cint,
     known_rotation::Ptr{RotYPRF64},
-    camera_config::Cint,
+    camera_config::CAMERA_CONFIG_C,
     result::Ptr{PoseEstimate_C}
 )::Cint
-    try
-        # Validate inputs
-        if runway_corners == C_NULL || projections == C_NULL || known_rotation == C_NULL || result == C_NULL
-            return POSEEST_ERROR_INVALID_INPUT
-        end
-
-        if num_points < 3
-            return POSEEST_ERROR_INSUFFICIENT_POINTS
-        end
-
-        # Convert C arrays to Julia arrays
-        corners_c = unsafe_wrap(Array, runway_corners, num_points)
-        projs_c = unsafe_wrap(Array, projections, num_points)
-        known_rot_c = unsafe_load(known_rotation)
-
-        # Convert to Julia types
-        jl_corners = [worldpoint_c_to_jl(corner) for corner in corners_c]
-        jl_projections = [projectionpoint_c_to_jl(proj) for proj in projs_c]
-        jl_rotation = rotation_c_to_jl(known_rot_c)
-
-        # Get camera configuration
-        camconfig = get_camera_config(camera_config)
-
-        # Perform pose estimation
-        sol = estimatepose3dof(jl_corners, jl_projections, jl_rotation, camconfig)
-
-        # Convert result back to C struct
-        result_c = PoseEstimate_C(
-            worldpoint_jl_to_c(sol.pos),
-            rotation_jl_to_c(jl_rotation),  # Use known rotation
-            0.0,  # residual_norm
-            1     # converged
-        )
-
-        # Write result to output pointer
-        unsafe_store!(result, result_c)
-
-        return POSEEST_SUCCESS
-
-    catch e
-        println(stderr, "Error in estimate_pose_3dof: $e")
-        if isa(e, BoundsError) || isa(e, ArgumentError)
-            return POSEEST_ERROR_INVALID_INPUT
-        else
-            return POSEEST_ERROR_NO_CONVERGENCE
-        end
+    # Validate inputs
+    if runway_corners_ == C_NULL || projections_ == C_NULL || known_rotation == C_NULL || result == C_NULL
+        return POSEEST_ERROR_INVALID_INPUT
     end
+
+    if num_points < 3
+        return POSEEST_ERROR_INSUFFICIENT_POINTS
+    end
+
+    # Convert C arrays to Julia arrays
+    runway_corners = unsafe_wrap(Array, runway_corners_, num_points) .* 1m |> SVector{Int(num_points)}
+    projections = unsafe_wrap(Array, projections_, num_points) .* 1px |> SVector{Int(num_points)}
+    known_rot_c = unsafe_load(known_rotation)
+
+    # Convert rotation to Julia type
+    jl_rotation = RotZYX(known_rot_c[1], known_rot_c[2], known_rot_c[3])
+
+    # Get camera configuration
+    camconfig = get_camera_config(camera_config)
+
+    # Perform pose estimation
+    sol = estimatepose3dof(runway_corners, projections, jl_rotation, camconfig)
+
+    # Convert result back to C struct
+    result_c = PoseEstimate_C(
+        sol.pos .|> _ustrip(m),
+        Rotations.params(jl_rotation),  # Use known rotation
+        0.0,  # residual_norm
+        1     # converged
+    )
+
+    # Write result to output pointer
+    unsafe_store!(result, result_c)
+
+    return POSEEST_SUCCESS
 end
 
 # Point projection utility
