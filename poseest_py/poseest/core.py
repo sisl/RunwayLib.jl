@@ -46,7 +46,7 @@ class InsufficientPointsError(PoseEstimationError):
 # C Structure Definitions (matching the C API)
 # ============================================================================
 
-class WorldPoint_C(ctypes.Structure):
+class WorldPointF64(ctypes.Structure):
     """C structure for 3D world points."""
     _fields_ = [
         ("x", ctypes.c_double),
@@ -55,7 +55,7 @@ class WorldPoint_C(ctypes.Structure):
     ]
 
 
-class ProjectionPoint_C(ctypes.Structure):
+class ProjectionPointF64(ctypes.Structure):
     """C structure for 2D image projections."""
     _fields_ = [
         ("x", ctypes.c_double),
@@ -63,20 +63,18 @@ class ProjectionPoint_C(ctypes.Structure):
     ]
 
 
-class Rotation_C(ctypes.Structure):
-    """C structure for rotations (ZYX Euler angles)."""
+class RotYPRF64(ctypes.Structure):
+    """C structure for rotations (ZYX Euler angles as 3-element vector)."""
     _fields_ = [
-        ("yaw", ctypes.c_double),
-        ("pitch", ctypes.c_double),
-        ("roll", ctypes.c_double),
+        ("data", ctypes.c_double * 3),  # yaw, pitch, roll as array
     ]
 
 
 class PoseEstimate_C(ctypes.Structure):
     """C structure for pose estimation results."""
     _fields_ = [
-        ("position", WorldPoint_C),
-        ("rotation", Rotation_C),
+        ("position", WorldPointF64),
+        ("rotation", RotYPRF64),
         ("residual_norm", ctypes.c_double),
         ("converged", ctypes.c_int),
     ]
@@ -118,12 +116,12 @@ class WorldPoint:
     y: float
     z: float
     
-    def to_c_struct(self) -> WorldPoint_C:
+    def to_c_struct(self) -> WorldPointF64:
         """Convert to C structure."""
-        return WorldPoint_C(self.x, self.y, self.z)
+        return WorldPointF64(self.x, self.y, self.z)
     
     @classmethod
-    def from_c_struct(cls, c_struct: WorldPoint_C) -> 'WorldPoint':
+    def from_c_struct(cls, c_struct: WorldPointF64) -> 'WorldPoint':
         """Create from C structure."""
         return cls(c_struct.x, c_struct.y, c_struct.z)
 
@@ -144,12 +142,12 @@ class ProjectionPoint:
     x: float
     y: float
     
-    def to_c_struct(self) -> ProjectionPoint_C:
+    def to_c_struct(self) -> ProjectionPointF64:
         """Convert to C structure."""
-        return ProjectionPoint_C(self.x, self.y)
+        return ProjectionPointF64(self.x, self.y)
     
     @classmethod
-    def from_c_struct(cls, c_struct: ProjectionPoint_C) -> 'ProjectionPoint':
+    def from_c_struct(cls, c_struct: ProjectionPointF64) -> 'ProjectionPoint':
         """Create from C structure."""
         return cls(c_struct.x, c_struct.y)
 
@@ -168,14 +166,18 @@ class Rotation:
     pitch: float
     roll: float
     
-    def to_c_struct(self) -> Rotation_C:
+    def to_c_struct(self) -> RotYPRF64:
         """Convert to C structure."""
-        return Rotation_C(self.yaw, self.pitch, self.roll)
+        c_struct = RotYPRF64()
+        c_struct.data[0] = self.yaw
+        c_struct.data[1] = self.pitch
+        c_struct.data[2] = self.roll
+        return c_struct
     
     @classmethod
-    def from_c_struct(cls, c_struct: Rotation_C) -> 'Rotation':
+    def from_c_struct(cls, c_struct: RotYPRF64) -> 'Rotation':
         """Create from C structure."""
-        return cls(c_struct.yaw, c_struct.pitch, c_struct.roll)
+        return cls(c_struct.data[0], c_struct.data[1], c_struct.data[2])
 
 
 @dataclass
@@ -231,8 +233,8 @@ def _setup_function_signatures(lib):
     
     # estimate_pose_6dof
     lib.estimate_pose_6dof.argtypes = [
-        ctypes.POINTER(WorldPoint_C),      # runway_corners
-        ctypes.POINTER(ProjectionPoint_C), # projections  
+        ctypes.POINTER(WorldPointF64),      # runway_corners
+        ctypes.POINTER(ProjectionPointF64), # projections  
         ctypes.c_int,                      # num_points
         ctypes.c_int,                      # camera_config
         ctypes.POINTER(PoseEstimate_C)     # result
@@ -241,10 +243,10 @@ def _setup_function_signatures(lib):
     
     # estimate_pose_3dof  
     lib.estimate_pose_3dof.argtypes = [
-        ctypes.POINTER(WorldPoint_C),      # runway_corners
-        ctypes.POINTER(ProjectionPoint_C), # projections
+        ctypes.POINTER(WorldPointF64),      # runway_corners
+        ctypes.POINTER(ProjectionPointF64), # projections
         ctypes.c_int,                      # num_points  
-        ctypes.POINTER(Rotation_C),        # known_rotation
+        ctypes.POINTER(RotYPRF64),        # known_rotation
         ctypes.c_int,                      # camera_config
         ctypes.POINTER(PoseEstimate_C)     # result
     ]
@@ -252,11 +254,11 @@ def _setup_function_signatures(lib):
     
     # project_point
     lib.project_point.argtypes = [
-        ctypes.POINTER(WorldPoint_C),      # camera_position
-        ctypes.POINTER(Rotation_C),        # camera_rotation
-        ctypes.POINTER(WorldPoint_C),      # world_point
+        ctypes.POINTER(WorldPointF64),      # camera_position
+        ctypes.POINTER(RotYPRF64),        # camera_rotation
+        ctypes.POINTER(WorldPointF64),      # world_point
         ctypes.c_int,                      # camera_config
-        ctypes.POINTER(ProjectionPoint_C)  # result
+        ctypes.POINTER(ProjectionPointF64)  # result
     ]
     lib.project_point.restype = ctypes.c_int
 
@@ -327,8 +329,8 @@ def estimate_pose_6dof(
     
     # Convert to C arrays
     num_points = len(runway_corners)
-    corners_array = (WorldPoint_C * num_points)(*[c.to_c_struct() for c in runway_corners])
-    projs_array = (ProjectionPoint_C * num_points)(*[p.to_c_struct() for p in projections])
+    corners_array = (WorldPointF64 * num_points)(*[c.to_c_struct() for c in runway_corners])
+    projs_array = (ProjectionPointF64 * num_points)(*[p.to_c_struct() for p in projections])
     
     # Prepare result structure
     result = PoseEstimate_C()
@@ -384,8 +386,8 @@ def estimate_pose_3dof(
     
     # Convert to C arrays
     num_points = len(runway_corners)
-    corners_array = (WorldPoint_C * num_points)(*[c.to_c_struct() for c in runway_corners])
-    projs_array = (ProjectionPoint_C * num_points)(*[p.to_c_struct() for p in projections])
+    corners_array = (WorldPointF64 * num_points)(*[c.to_c_struct() for c in runway_corners])
+    projs_array = (ProjectionPointF64 * num_points)(*[p.to_c_struct() for p in projections])
     rotation_c = known_rotation.to_c_struct()
     
     # Prepare result structure
@@ -440,7 +442,7 @@ def project_point(
     world_pt_c = world_point.to_c_struct()
     
     # Prepare result structure
-    result = ProjectionPoint_C()
+    result = ProjectionPointF64()
     
     # Call C function
     error_code = lib.project_point(
