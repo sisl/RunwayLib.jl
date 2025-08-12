@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-22.04, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -57,12 +57,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-22.04, ubuntu-latest]
     steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: juliac-build-ubuntu-20.04
+          name: juliac-build-ubuntu-22.04
           path: artifacts/
 
       - name: Make executable runnable
@@ -79,7 +79,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-latest]
+        os: [ubuntu-22.04, ubuntu-latest]
         python-version: ['3.9', '3.10', '3.11', '3.12']
     
     steps:
@@ -93,7 +93,7 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: juliac-build-ubuntu-20.04
+          name: juliac-build-ubuntu-22.04
           path: artifacts/
 
       - name: Install Python dependencies
