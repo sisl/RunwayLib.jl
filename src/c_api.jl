@@ -150,17 +150,17 @@ Base.@ccallable function estimate_pose_3dof(
     result::Ptr{PoseEstimate_C}
 )::Cint
     # Validate inputs
-    if runway_corners_ == C_NULL || projections_ == C_NULL || known_rotation == C_NULL || result == C_NULL
+    if runway_corners_ == C_NULL || projections_ == C_NULL || known_rotation == C_NULL || result == C_NULL || num_points != 4
         return POSEEST_ERROR_INVALID_INPUT
     end
 
-    if num_points < 3
+    if num_points < 4
         return POSEEST_ERROR_INSUFFICIENT_POINTS
     end
 
     # Convert C arrays to Julia arrays
-    runway_corners = unsafe_wrap(Array, runway_corners_, num_points) .* 1m |> SVector{Int(num_points)}
-    projections = unsafe_wrap(Array, projections_, num_points) .* 1px |> SVector{Int(num_points)}
+    runway_corners = unsafe_wrap(Array, runway_corners_, num_points) .* 1m |> SVector{4}
+    projections = unsafe_wrap(Array, projections_, num_points) .* 1px |> SVector{4}
     known_rot_c = unsafe_load(known_rotation)
 
     # Convert rotation to Julia type
