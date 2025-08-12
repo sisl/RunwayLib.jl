@@ -67,3 +67,58 @@ jobs:
         run: |
           cd artifacts
           JULIA_DEPOT_PATH=RunwayLibCompiled/share/julia ./mainc
+
+  test-python:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: juliac-build
+          path: artifacts/
+
+      - name: Install Python dependencies
+        working-directory: poseest_py
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Copy library to Python package
+        run: |
+          # Remove existing symlinked library (if any)
+          rm -rf poseest_py/poseest/native/RunwayLibCompiled
+          # Copy the built library
+          cp -r artifacts/RunwayLibCompiled poseest_py/poseest/native/
+
+      - name: Test Python package (basic tests)
+        working-directory: poseest_py
+        run: |
+          python -m pytest tests/test_poseest.py::TestDataTypes -v
+
+      - name: Test Python package (library integration)
+        working-directory: poseest_py
+        run: |
+          python -m pytest tests/test_poseest.py::TestLibraryIntegration -v
+
+      - name: Test Python package (error handling)
+        working-directory: poseest_py
+        run: |
+          python -m pytest tests/test_poseest.py::TestErrorHandling -v
+
+      - name: Run all Python tests
+        working-directory: poseest_py
+        run: |
+          python -m pytest tests/ -v
