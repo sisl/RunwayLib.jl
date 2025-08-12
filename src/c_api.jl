@@ -4,6 +4,7 @@
 using StaticArrays
 using Rotations
 using Unitful, Unitful.DefaultSymbols
+using CEnum
 
 # C struct definitions for interop
 struct WorldPoint_C
@@ -76,7 +77,7 @@ function get_camera_config(config_type::Union{Int,Cint})
 end
 
 # Error message function
-function get_error_message_impl(error_code::Int)
+function get_error_message_impl(error_code::POSEEST_ERROR)
     messages = Dict(
         POSEEST_SUCCESS => "Success",
         POSEEST_ERROR_INVALID_INPUT => "Invalid input parameters",
@@ -92,7 +93,7 @@ const ERROR_MESSAGES = Dict{Int,Ptr{UInt8}}()
 
 Base.@ccallable function get_error_message(error_code::Cint)::Ptr{UInt8}
     if !haskey(ERROR_MESSAGES, error_code)
-        msg = get_error_message_impl(error_code)
+        msg = get_error_message_impl(POSEEST_ERROR(error_code))
         ERROR_MESSAGES[error_code] = pointer(msg)
     end
     return ERROR_MESSAGES[error_code]
@@ -118,7 +119,7 @@ Base.@ccallable function estimate_pose_6dof(
     runway_corners::Ptr{WorldPoint_C},
     projections::Ptr{ProjectionPoint_C},
     num_points::Cint,
-    camera_config::Cint,
+    camera_config::CAMERA_CONFIG_C,
     result::Ptr{PoseEstimate_C}
 )::Cint
     try
