@@ -69,6 +69,7 @@ include("pose_estimation/errors.jl")
 include("type_piracy.jl")
 include("entrypoints.jl")
 include("c_api.jl")
+# include("precompile_workloads.jl")
 
 # Export pose estimation entrypoints and types
 export estimatepose6dof, estimatepose3dof, pose_optimization
@@ -97,8 +98,5 @@ end
 function extract_uncertainties(flight_data_row)
     error("extract_uncertainties not yet implemented - accepts TypedTables row")
 end
-
-# Include precompile workloads
-include("precompile_workloads.jl")
 
 end # module RunwayLib
